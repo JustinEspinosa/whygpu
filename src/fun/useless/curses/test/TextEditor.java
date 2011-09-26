@@ -22,9 +22,8 @@ public class TextEditor extends Application {
 	private void buildMenu(){
 		MenuItem tmpItem;
 		PopUp fMenu = getWindowManager().newPopUp(30);
-		tmpItem = new MenuItem("New");
+		tmpItem = new MenuItem("New",curses());
 		tmpItem.addActionListener(new ActionListener() {
-			@Override
 			public void actionPerformed(ActionEvent e) {
 				newWindow();
 			}
@@ -35,12 +34,12 @@ public class TextEditor extends Application {
 	}
 	
 	private void newWindow(){
-		TextEditorWindow newWin = new TextEditorWindow("New", this, getWindowManager().getNextWindowPosition(), new Dimension(15, 30));
+		TextEditorWindow newWin = new TextEditorWindow("New", this,curses(), getWindowManager().getNextWindowPosition(), new Dimension(15, 30));
 		showWindow(newWin);	
 	}
 
 	@Override
-	public String getName() {
+	protected String name() {
 		return "Edit";
 	}
 

@@ -14,7 +14,7 @@ public class HelpApplication extends Application {
 	@Override
 	public void start() {
 		if(helpWin==null){
-			helpWin = new HelpWindow("Help", this, getWindowManager().getNextWindowPosition(), new Dimension(15, 30));
+			helpWin = new HelpWindow("Help", this,curses(), getWindowManager().getNextWindowPosition(), new Dimension(15, 30));
 		}
 		showWindow(helpWin);
 	}
@@ -24,7 +24,7 @@ public class HelpApplication extends Application {
 	}
 
 	@Override
-	public String getName() {
+	protected String name() {
 		return "Help";
 	}
 

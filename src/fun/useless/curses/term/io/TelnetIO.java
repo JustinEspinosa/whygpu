@@ -4,12 +4,35 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Vector;
+import java.util.logging.Logger;
 
 import fun.useless.curses.term.ByteVector;
 
 
 
 public class TelnetIO {
+
+	public final class TelnetOutputStream extends OutputStream{
+
+		@Override
+		public void write(int b) throws IOException {
+			os.write(b);
+			if( (byte)b == IAC  && (b != 0xffffffff) )
+				os.write(b);
+		}
+		
+		@Override
+		public void flush() throws IOException {
+			os.flush();
+		}
+		
+	}
+	public final class TelnetInputStream extends InputStream {		
+		@Override
+		public int read() throws IOException {
+			return telnetRead(true);
+		}
+	}
 
 	/* command set */
 	protected final static byte IAC  = (byte)255;
@@ -36,8 +59,11 @@ public class TelnetIO {
 	public final static byte ECHO = (byte)1;
 	public final static byte SUPPRESS_GOAHEAD = (byte)3;
 	
+	public final static int EOF = (int)-1;
+	
 	protected static void writeSequence(OutputStream os, byte ... c) throws IOException{
 		os.write(c);
+		os.flush();
 	}
 
 	protected static void writeOption(OutputStream os,byte o,byte a) throws IOException{
@@ -64,11 +90,22 @@ public class TelnetIO {
 	protected byte[]    lastActionSent  = new byte[256];
 	protected byte[]    lastActionRecv  = new byte[256];
 	protected boolean[] inSubNeg        = new boolean[256];
+	private boolean gotit = false;
+	
 	/* cannot create generic arrays? why? uncool. I'm upsetings*/
 	@SuppressWarnings("rawtypes")
 	protected Vector[]  subNegHistory   = new Vector[256];
 	
 	
+	
+	private Logger logger = null;
+	private boolean logging = true;
+	
+	
+	public TelnetIO(Logger l,InputStream i,OutputStream o){
+		this(i,o);
+		logger = l;
+	}
 	/* but I want generic arrayings  !! */
 	@SuppressWarnings("rawtypes")
 	public TelnetIO(InputStream i,OutputStream o){
@@ -81,25 +118,31 @@ public class TelnetIO {
 		}
 	}
 	
+	
+	private boolean canLog(){
+		if(logger==null) return false;
+		return logging;
+	}
 
-	public InputStream makeHookedInputStream(){
-		return new InputStream(){
-			@Override
-			public int read() throws IOException {
-				return telnetRead();
-			}
-		};
+	public OutputStream makeHookedOutputStream(){
+		return new TelnetOutputStream();
 	}
 	
-	public int telnetRead() throws IOException{
-		return telnetRead(false);
+	public InputStream makeHookedInputStream(){
+		return new TelnetInputStream();
 	}
-	public int telnetRead(boolean returnsiac) throws IOException{
+
+	public int telnetRead(boolean readMore) throws IOException{
 		int b = is.read();
-		
-		if( (byte)b == IAC ){
-			readCommand();
-			if(!returnsiac)
+				
+		if( (byte)b == IAC  && (b != 0xffffffff) ){
+			
+			if(canLog())
+				logger.fine("Telnet IAC Received");
+						
+			boolean gotIAC2 = readCommand();
+			
+			if(!gotIAC2 && readMore)
 				b = is.read();
 		}
 		return b;
@@ -150,7 +193,8 @@ public class TelnetIO {
 		
 	protected void action(byte action,byte option) throws IOException{
 		
-		//System.out.println("OP : "+(int)action+ " : "+ option);
+		if(canLog())
+			logger.fine("Telnet Action : "+TelnetProtocolDebug.getName(action)+ " "+ TelnetProtocolDebug.getName(option) );
 		
 		lastActionRecv[option] = action;
 		
@@ -166,17 +210,32 @@ public class TelnetIO {
 	@SuppressWarnings("unchecked")
 	protected void negotation(byte option) throws IOException{
 		
-		//System.out.println("NEG : "+ option);
+		if(canLog())
+			logger.fine("Telnet Negotiation : "+ TelnetProtocolDebug.getName(option) );
 		
 		if(inSubNeg[option]){
 			subNegHistory[option].add( readNegotiationString() );
 		}
 	}
 	
-	protected void readCommand() throws IOException{
+	private void clearGotit(){
+		gotit = false;
+	}
+	
+	private boolean gotIt(){
+		return gotit;
+	}
+	
+	protected boolean readCommand() throws IOException{
 		byte c = (byte)is.read();
 		
-		//System.out.println("CMD: "+(int)c);
+		if(canLog())
+			logger.fine("Telnet Command read: "+TelnetProtocolDebug.getName(c));
+		
+		if(c == IAC)
+			return true;
+		else
+			gotit = true;
 		
 		/* warning: reversed because bytes are signed in java */
 		if(c < IAC && c > SB)
@@ -188,6 +247,8 @@ public class TelnetIO {
 			is.close();
 			os.close();
 		}
+		
+		return false;
 	}
 	
 	protected ByteVector readNegotiationString() throws IOException{
@@ -199,13 +260,18 @@ public class TelnetIO {
 			b = (byte)is.read();
 		}
 		
-		//System.out.println("SUB-STR: "+bld.toString());
+		if(canLog())
+				logger.fine("Telnet Sub-negotation string: "+bld.toString());
 		
 		return bld;
 	}
 	
-	protected void optionAction(byte action,byte option) throws IOException{
+	protected void optionAction(byte action,byte option) throws IOException{		
 		writeOption(os, option, action);
+
+		if(canLog())
+			logger.fine("Telnet command written: "+TelnetProtocolDebug.getName(action)+" "+TelnetProtocolDebug.getName(option));
+
 		lastActionSent[option] = action;
 	}
 	
@@ -237,7 +303,9 @@ public class TelnetIO {
 	/* The non-IAC part of the input is discarded */
 	/* could block for ever if the client does not understand */
 	public void readUntilNextCommand() throws IOException{
-		while( (byte)telnetRead(true)!=IAC);
+		clearGotit();
+		while( !gotIt() ) 
+			telnetRead(false);
 	}
 	protected boolean singleOption(byte action,byte option) throws IOException{
 		optionAction(action,option);

@@ -1,5 +1,6 @@
 package fun.useless.curses.test;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.application.Application;
 import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
@@ -10,14 +11,13 @@ public class TextEditorWindow extends Window {
 
 	private MultiLineEdit textContent;
 	
-	public TextEditorWindow(String title, Application app, Position position, Dimension dimension) {
-		super(title, app, position, dimension);
+	public TextEditorWindow(String title, Application app,Curses cs, Position position, Dimension dimension) {
+		super(title, app,cs, position, dimension);
 		
 		Dimension d = getSize().vertical(-1);
-		textContent = new MultiLineEdit(1, 0,d.getLines(),d.getCols());	
+		textContent = new MultiLineEdit(cs,new Position(1, 0),d);	
 		addChild(textContent);
 		
-		notifyDisplayChange();
 	}
 	
 	@Override

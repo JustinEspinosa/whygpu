@@ -51,6 +51,9 @@ public class Formatter {
 			if(params[current] > c)
 				params[current]+=incval;
 		}
+		public void position(char pos){
+			current = pos - 0x31;
+		}
 		public void aop(char op, char type, char pos){
 			int operand = 0;
 			if(type=='p')
@@ -108,6 +111,11 @@ public class Formatter {
 				fOffset++;
 				
 				switch(nc){
+				case 'p':
+					char p = formatStr.charAt(fOffset);
+					fOffset++;
+					pp.position(p);
+					break;
 				case '%':
 					builder.append(nc);
 					break;

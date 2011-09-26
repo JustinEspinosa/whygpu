@@ -19,6 +19,11 @@ public class Rectangle {
 		pos = new Position(line,col);
 		dim = new Dimension(lines,cols);
 	}
+	
+	@Override
+	public String toString() {
+		return "Rectangle["+pos+","+dim+"]";
+	}
 
 	/*shortcuts*/
 	public int getCol(){ return pos.getCol(); }

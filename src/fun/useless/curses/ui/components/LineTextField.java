@@ -1,10 +1,12 @@
 package fun.useless.curses.ui.components;
 
 
-import fun.useless.curses.ui.ColorChar;
+import fun.useless.curses.Curses;
+import fun.useless.curses.lang.ColorChar;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
 import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.event.CharacterCodeEvent;
 import fun.useless.curses.ui.event.TermKeyEvent;
 import fun.useless.curses.ui.event.UiEvent;
@@ -14,9 +16,10 @@ public class LineTextField extends AbstractTextField{
 
 	private StringBuilder textContent = new StringBuilder();
 	private int cursorCol = 0;
+	private int replacementChar = -1;
 	
-	public LineTextField(int sLine, int sCol) {
-		super(sLine, sCol, 1, 1);
+	public LineTextField(Curses cs,Position p) {
+		super(cs,p,new Dimension(1, 1));
 		drawContent();
 	}
 	
@@ -30,7 +33,7 @@ public class LineTextField extends AbstractTextField{
 	private boolean cursorColValid(){
 		return (cursorCol>=0) && (cursorCol<=textContent.length());
 	}
-	private void eraseCursor(){
+	private synchronized void eraseCursor(){
 		if((cursorColValid())){
 			ColorChar cc = getCharAt(0, cursorCol);
 		
@@ -38,21 +41,32 @@ public class LineTextField extends AbstractTextField{
 				setChar(0, cursorCol, cc.getChr());
 		}
 	}	
-	private void drawCursor(){
+	private synchronized void drawCursor(){
 		checkCursorPosition();
 		ColorChar cc = getCharAt(0, cursorCol);
 		
 		if(isCursorOn()){
 			setColor(cc.getColors().invert());
 			setChar(0, cursorCol, cc.getChr());
-			setColor(ColorDefaults.getDefaultColor(ColorType.EDIT));
+			setColor(ColorDefaults.getDefaultColor(ColorType.EDIT,curses()));
 		}
 	}
 	
-	protected final void drawContent(){
+	private String repeat(char c, int times){
+	    StringBuilder b = new StringBuilder();
+	    for(int i=0;i < times;i++)
+	        b.append(c);
+	    return b.toString();
+	}
+	
+	protected synchronized final void drawContent(){
 		clear();
 		setSize( new Dimension(1,textContent.length()+1) );
-		printAt(0, 0, textContent.toString());
+		if(replacementChar==-1){
+			printAt(0, 0, textContent.toString());
+		}else{
+			printAt(0, 0, repeat((char)replacementChar,textContent.length()));
+		}
 		
 		drawCursor();
 	}
@@ -130,6 +144,10 @@ public class LineTextField extends AbstractTextField{
 			}
 		}
 		super.processEvent(e);
+	}
+
+	public void setReplacementChar(char c) {
+		replacementChar = (int)c;
 	}
 
 }

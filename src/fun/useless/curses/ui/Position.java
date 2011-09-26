@@ -13,6 +13,11 @@ public class Position {
 	public int getLine(){
 		return line;
 	}
+	@Override
+	public String toString() {
+		return "Position("+line+";"+col+")";
+	}
+	
 	public Position horizontal(int diff){
 		return new Position(line,col+diff);
 	}

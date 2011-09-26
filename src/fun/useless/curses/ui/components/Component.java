@@ -3,7 +3,9 @@ package fun.useless.curses.ui.components;
 import java.util.Enumeration;
 import java.util.Vector;
 
-import fun.useless.curses.ui.ColorChar;
+import fun.useless.curses.Curses;
+import fun.useless.curses.ui.BaseColor;
+import fun.useless.curses.lang.ColorChar;
 import fun.useless.curses.ui.ColorPair;
 import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
@@ -18,47 +20,46 @@ import fun.useless.curses.ui.event.UiEvent;
 public abstract class Component {
 
 	private ColorChar[][] content;
-	private int pCol;
-	private int pLine;
-	private int pCols;
-	private int pLines;
-	private int fC=-1;
-	private int bC=-1;
+	private Position position;
+	private Dimension size;
+	private Curses curses;
+	private ColorPair color = new ColorPair(BaseColor.Undefined,BaseColor.Undefined);
 	private boolean hasBorder=false;
 	private boolean isVisible=true;
 	private EventReceiver evReceiver;
 	private Vector<SizeChangeListener<Component>> szListeners = new Vector<SizeChangeListener<Component>>();
-	private int minLines = -1;
-	private int minCols  = -1;
-	private int maxLines = -1;
-	private int maxCols = -1;
+	
+	private Dimension minSize = null;
+	private Dimension maxSize = null;
 	
 	
-	public Component(int sLine,int sCol,int lines,int cols){
-		pCol = sCol;
-		pLine = sLine;
-		pCols = cols;
-		pLines = lines;
-		content = new ColorChar[pLines][pCols];
+	public Component(Curses cs,Position p,Dimension d){
+		position = p.copy();
+		size = d.copy();
+		curses = cs;
+		content = new ColorChar[size.getLines()][size.getCols()];
 		init();
 	}
+	
+	public Curses curses(){
+		return curses;
+	}
+	
 	/**
 	 * -1 means unspecified
 	 * @param lines
 	 * @param cols
 	 */
-	protected final void setMinSize(int lines,int cols){
-		minLines = lines;
-		minCols = cols;
+	protected final void setMinSize(Dimension d){
+		minSize = d.copy();
 	}
 	/**
 	 * -1 means unspecified
 	 * @param lines
 	 * @param cols
 	 */
-	protected final void setMaxSize(int lines,int cols){
-		maxLines = lines;
-		maxCols = cols;
+	protected final void setMaxSize(Dimension d){
+		maxSize = d.copy();
 	}
 	
 	protected final void notifySizeChanged(){
@@ -87,22 +88,22 @@ public abstract class Component {
 		sendEvent(new RedrawEvent(this, r));
 	}
 	protected final void notifyDisplayChange(){
-		notifyDisplayChange(new Rectangle(0,0,pLines,pCols));
+		notifyDisplayChange(new Rectangle(new Position(0,0),size));
 	}
 	
 	protected final void createArray(ColorChar[][] arr){
 		for(int i=0;i<arr.length;i++) for(int j=0;j<arr[i].length;j++)
-			arr[i][j]=new ColorChar(' ',fC,bC);	
+			arr[i][j]=new ColorChar(' ',color);	
 	}
 	protected void init(){
 		createArray(content);
 	}
 	private synchronized void resizeContent(){
-		ColorChar[][] newContent = new ColorChar[pLines][pCols];
+		ColorChar[][] newContent = new ColorChar[size.getLines()][size.getCols()];
 		createArray(newContent);
 		
 		for(int i=0;i<content.length;i++) for(int j=0;j<content[i].length;j++)
-			if( i<pLines && j<pCols )	
+			if( i<size.getLines() && j<size.getCols() )	
 				newContent[i][j] = content[i][j];
 		content = newContent;
 		
@@ -111,53 +112,53 @@ public abstract class Component {
 	protected void setChar(int line,int col,char c){
 		setChar(line,col,c,false);
 	}
+	
 	protected synchronized void setChar(int line,int col,char c, boolean allowborder){
 		
 		boolean withBorder = (line >= getInnerTop() && line <= getInnerBottom() && 
 								col >= getInnerLeft() && col <= getInnerRight() );
-		boolean withoutBorder = ( line >= 0 && line < pLines && col >= 0 && col <= pCols);
+		boolean withoutBorder = ( line >= 0 && line < size.getLines() && col >= 0 && col <= size.getCols());
 		
 		
 		if( (withBorder && allowborder) || withoutBorder ){
 			content[line][col].setChr(c);
-			content[line][col].setColor(fC);
-			content[line][col].setBackColor(bC);
+			content[line][col].setColor(color);
 		}
 	}
 	
 	protected void unBorder(){
 		
-		for(int col=0;col<pCols;col++){
+		for(int col=0;col<size.getCols();col++){
 			setChar(0,col,' ', true);
-			setChar(pLines-1,col,' ', true);
+			setChar(size.getLines()-1,col,' ', true);
 		}
-		for(int line=0;line<pLines;line++){
+		for(int line=0;line<size.getLines();line++){
 			setChar(line,0,' ', true);
-			setChar(line,pCols-1,' ', true);
+			setChar(line,size.getCols()-1,' ', true);
 		}
 		
 	}
 	protected void border(){
 		
-		for(int col=1;col<pCols-1;col++){
+		for(int col=1;col<size.getCols()-1;col++){
 			setChar(0,col,'=', true);
-			setChar(pLines-1,col,'=', true);
+			setChar(size.getLines()-1,col,'=', true);
 		}
-		for(int line=1;line<pLines-1;line++){
+		for(int line=1;line<size.getLines()-1;line++){
 			setChar(line,0,'I', true);
-			setChar(line,pCols-1,'I', true);
+			setChar(line,size.getCols()-1,'I', true);
 		}
 
 		setChar(0,0,'+', true);
-		setChar(pLines-1,0,'+', true);
-		setChar(0,pCols-1,'+', true);
-		setChar(pLines-1,pCols-1,'+', true);
+		setChar(size.getLines()-1,0,'+', true);
+		setChar(0,size.getCols()-1,'+', true);
+		setChar(size.getLines()-1,size.getCols()-1,'+', true);
 		
 	}
 	
 	public void clear(){
 		
-		for(int line=0;line<pLines;line++) for(int col=0;col<pCols;col++)
+		for(int line=0;line<size.getLines();line++) for(int col=0;col<size.getCols();col++)
 			setChar(line,col,' ');
 
 		if(hasBorder)
@@ -166,17 +167,17 @@ public abstract class Component {
 	
 	public synchronized ColorChar getCharAt(int line,int col){
 
-		if(line >= 0 && line < pLines && col >= 0 && col < pCols)
+		if(line >= 0 && line < size.getLines() && col >= 0 && col < size.getCols())
 			return content[line][col];
 		
 		return null;
 	}
 	
 	protected  int getInnerRight(){
-		return (pCols-1) - (hasBorder?1:0);
+		return (size.getCols()-1) - (hasBorder?1:0);
 	}
 	protected  int getInnerBottom(){
-		return (pLines-1) - (hasBorder?1:0);
+		return (size.getLines()-1) - (hasBorder?1:0);
 	}
 	protected  int getInnerLeft(){
 		return (hasBorder?1:0);
@@ -184,7 +185,7 @@ public abstract class Component {
 	protected  int getInnerTop(){
 		return (hasBorder?1:0);
 	}
-	public ColorChar[][] getPartialContent(int sLine,int sCol,int lines,int cols){
+	public synchronized ColorChar[][] getPartialContent(int sLine,int sCol,int lines,int cols){
 		if(lines<0 || cols<0 ) return new ColorChar[0][0];
 		
 		ColorChar[][] r = new ColorChar[lines][cols];
@@ -200,29 +201,31 @@ public abstract class Component {
 	}
 	
 	public ColorChar[][] getContent(){
-		return getPartialContent(0,0,pLines,pCols);
+		return getPartialContent(0,0,size.getLines(),size.getCols());
 	}
 	
 	public Position getPosition(){
-		return new Position(pLine,pCol);
+		return position.copy();
 	}
 	
     public Dimension getSize(){
-    	return new Dimension(pLines, pCols);
+    	return size.copy();
     }
 	
 	public void setBorder(boolean border){
 		hasBorder = border;
 	}
 	
+	public boolean hasBorder(){
+		return hasBorder;
+	}
 
 	public ColorPair getColor(){
-		return new ColorPair(fC, bC);
+		return color;
 	}
 	
 	public void setColor(ColorPair p){
-		fC = p.getForeColor();
-		bC = p.getBackColor();
+		color = p;
 	}
 	
 	
@@ -237,14 +240,13 @@ public abstract class Component {
 	public final void setPosition(Position p){
 
 		/* Area to update */
-		Position origin = new Position(Math.min(p.getLine(), pLine),Math.min(p.getCol(), pCol));
-		Position end    = new Position(Math.max(p.getLine()+pLines, pLine+pLines),Math.max(p.getCol()+pCols, pCol+pCols));
+		Position origin = new Position(Math.min(p.getLine(), position.getLine()),Math.min(p.getCol(), position.getCol()));
+		Position end    = new Position(Math.max(p.getLine()+size.getLines(), position.getLine()+size.getLines()),Math.max(p.getCol()+size.getCols(), position.getCol()+size.getCols()));
 
-		pCol = p.getCol();
-		pLine = p.getLine();
-		
+		position = p.copy();
+				
 		/* Rectangle relative to current position */
-		notifyDisplayChange(new Rectangle(origin.vertical(-pLine).horizontal(-pCol),end.vertical(-pLine).horizontal(-pCol)));
+		notifyDisplayChange(new Rectangle(origin.vertical(-position.getLine()).horizontal(-position.getCol()),end.vertical(-position.getLine()).horizontal(-position.getCol())));
 	}
 	
 	/**
@@ -267,16 +269,15 @@ public abstract class Component {
 		if(sz.getLines()<0 || sz.getCols()<0) return;
 		
 		/*stick to max/min*/
-		Dimension size = new Dimension(checkLines(sz.getLines()),checkCols(sz.getCols()));
+		Dimension size2 = new Dimension(checkLines(sz.getLines()),checkCols(sz.getCols()));
 		
 		if(hasBorder) unBorder();
 		
 		/*compute what's to be redrawn*/
-		int lines = Math.max(pLines, size.getLines() );
-		int cols = Math.max(pCols, size.getCols() );
+		int lines = Math.max(size.getLines(), size2.getLines() );
+		int cols = Math.max(size.getCols(), size2.getCols() );
 		
-		pLines = size.getLines();
-		pCols = size.getCols();
+		size = size2.copy();
 		
 		resizeContent();
 		userResized();
@@ -286,11 +287,15 @@ public abstract class Component {
 	}
 	
 	private int checkCols(int cols){
-		return stickToMinMax(cols,minCols,maxCols);
+		if(minSize==null || maxSize==null)
+			return cols;
+		return stickToMinMax(cols,minSize.getCols(),maxSize.getCols());
 	}
 	
 	private int checkLines(int lines){
-		return stickToMinMax(lines,minLines,maxLines);
+		if(minSize==null || maxSize==null)
+			return lines;
+		return stickToMinMax(lines,minSize.getLines(),maxSize.getLines());
 	}
 	
 	private int stickToMinMax(int val,int min, int max){
@@ -311,10 +316,19 @@ public abstract class Component {
 		notifyDisplayChange();
 	}
 	
-	protected final void printAt(int line,int col, String str, boolean allowborder){
-		for(int n=0;n<str.length();n++) setChar(line,col + n,str.charAt(n), allowborder);
+	protected synchronized final void printAt(int line,int col, String str, boolean allowborder){
+		int ccol = col;
+		for(int n=0;n<str.length();n++){
+			char c = str.charAt(n);
+			if(c=='\n'){
+				++line; ccol = col;
+			}else{
+				setChar(line,ccol,str.charAt(n), allowborder);
+				++ccol;
+			}
+		}
 	}
-	public void printAt(int line,int col, String str){
+	public synchronized void printAt(int line,int col, String str){
 		printAt(line,col,str,false);
 	}
 }

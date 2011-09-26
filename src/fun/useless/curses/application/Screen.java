@@ -3,6 +3,7 @@ package fun.useless.curses.application;
 import java.io.IOException;
 
 import fun.useless.curses.Curses;
+import fun.useless.curses.CursesFactory;
 import fun.useless.curses.term.Terminal;
 import fun.useless.curses.ui.WindowManager;
 
@@ -12,13 +13,18 @@ public class Screen extends Thread{
 	private Curses        curses;
 	private WindowManager winMan;
 	
-	public Screen(Terminal t) throws IOException{
-		curses   = new Curses(t);
+	public Screen(Terminal t, CursesFactory cf) throws IOException{
+		this(t,cf,null);
+	}
+	
+	public Screen(Terminal t,CursesFactory cf, RootApplication root) throws IOException{
+		curses = cf.createCurses(t);
 		curses.noecho();
 		curses.raw();
 		curses.initColor();
 		curses.civis();
-		winMan = new WindowManager(curses);
+		//curses.setUtf8(true);
+		winMan = new WindowManager(curses, root);
 	}
 	
 	protected WindowManager getWindowManager(){
@@ -35,11 +41,12 @@ public class Screen extends Thread{
 	@Override
 	public void run(){
 		
+		WindowManager winMan = getWindowManager();
 		try {
-			WindowManager winMan = getWindowManager();
 			winMan.start();
 		} catch (IOException e) { 
-			e.printStackTrace();
+		}finally{
+			winMan.stop();
 		}
 		
 	}

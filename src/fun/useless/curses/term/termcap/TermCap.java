@@ -50,6 +50,7 @@ public class TermCap {
 		for(int i=0;i<names.length;i++)
 			types.put(names[i],type);		
 	}
+	
 	private void parseLine(String line){
 		if(line==null) return;
 		

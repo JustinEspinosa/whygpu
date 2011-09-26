@@ -8,6 +8,7 @@ public class ConsoleInputStream extends InputStream{
 	
 	private boolean canonMode = true;
 	private boolean echoMode  = true;
+	//private boolean utf8 = false;
 	
 	private InputStream baseIS;
 	private OutputStream echoOut;
@@ -20,6 +21,11 @@ public class ConsoleInputStream extends InputStream{
 		baseIS = is;
 		echoOut = echo;
 	}
+	/*
+	public void setUtf8(boolean c){
+		utf8 = c;
+	}
+	*/
 	
 	/**
 	 * Switch between canonical (line by line) and non-canonical mode
@@ -35,11 +41,8 @@ public class ConsoleInputStream extends InputStream{
 	public void setEcho(boolean e){
 		echoMode = e;
 	}
-	/**
-	 * Read one byte using input mode
-	 */
-	@Override
-	public int read() throws IOException {
+	
+	private int readForMode() throws IOException{
 		int c;
 		
 		if(canonMode){
@@ -49,8 +52,33 @@ public class ConsoleInputStream extends InputStream{
 			if(echoMode)
 				echoOut.write(c);
 		}
-		//System.out.println(c +":"+(char)c);
+		
 		return c;
+	}
+	/*
+	private int utf8getNumBytes(int b){
+		int r = 0;
+		int s = 0;
+		
+		while(b > 0){
+			r = b % 2;
+			if(r==0) 
+				s = 0;
+			else
+				s += r;
+			b = b /2;
+		}
+		
+		return s;
+	}
+	*/
+	
+	/**
+	 * Read one byte using input mode
+	 */
+	@Override
+	public int read() throws IOException {
+		return readForMode();
 	}
 	
 	private boolean isEol(int c){
@@ -113,9 +141,11 @@ public class ConsoleInputStream extends InputStream{
 			editStream();
 		}
 	}
+	
 	private int readNext() throws IOException{
 		return canonicalBuffer[canonicalBufferOffset++];
 	}
+	
 	private void buffer() throws IOException{
 		bufferUntilEol();
 		
@@ -129,6 +159,7 @@ public class ConsoleInputStream extends InputStream{
 		canonicalBufferOffset  = 0;
 		
 	}
+	
 	private int canonicalRead() throws IOException{
 		if(canonicalBufferOffset >= canonicalBufferLen)
 			buffer();

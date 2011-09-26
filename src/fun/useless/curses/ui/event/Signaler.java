@@ -13,7 +13,7 @@ public class Signaler extends Thread{
 	
 	@Override
 	public void run(){
-		try{ sleep(time); }catch(InterruptedException ie){}
+		try{ sleep(time); }catch(InterruptedException ie){ ie.printStackTrace(); }
 		target.signalReceived();
 	}
 

@@ -3,8 +3,11 @@ package fun.useless.curses.ui.components;
 import java.util.Enumeration;
 import java.util.Vector;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.WindowManager;
 import fun.useless.curses.ui.event.ActionEvent;
 import fun.useless.curses.ui.event.ActionListener;
@@ -18,9 +21,9 @@ public abstract class AbstractMenu extends MutableContainer<MenuItem> implements
 	protected int selectedIndex = -1;
 	protected Vector<FinishedActionListener> fLinisteners = new Vector<FinishedActionListener>();
 	
-	public AbstractMenu(int lines,int cols,WindowManager m) {
-		super(0, 0, lines, cols);
-		setColor(ColorDefaults.getDefaultColor(ColorType.MENU));
+	public AbstractMenu(Curses cs,Dimension d,WindowManager m) {
+		super(cs,new Position(0,0),d);
+		setColor(ColorDefaults.getDefaultColor(ColorType.MENU,curses()));
 		manager = m;
 	}
 	
@@ -89,7 +92,6 @@ public abstract class AbstractMenu extends MutableContainer<MenuItem> implements
 		
 	}
 	
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() instanceof MenuItem){
 			notifyFinish(true);

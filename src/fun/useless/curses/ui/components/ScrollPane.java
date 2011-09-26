@@ -1,5 +1,6 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.event.Event;
@@ -35,8 +36,8 @@ public class ScrollPane<T extends Component> extends Container<Component> implem
 	private Button    corner;
 	private boolean scrollMode = false;
 	
-	public ScrollPane(T component,int sLine, int sCol, int lines, int cols) {
-		super(sLine, sCol, lines, cols);
+	public ScrollPane(T component,Curses cs,Position p,Dimension d) {
+		super(cs,p,d);
 		
 		innerComponent=component;
 		intAddChild(innerComponent);
@@ -57,9 +58,9 @@ public class ScrollPane<T extends Component> extends Container<Component> implem
 	}
 	
 	private void createComponents(){
-		vert = new ScrollBar(ScrollBar.VERTICAL, getInnerTop(), getInnerRight(), getSize().getLines()-1);
-		horz = new ScrollBar(ScrollBar.HORIZONTAL, getInnerBottom(),getInnerLeft(),getSize().getCols()-1);
-		corner = new Button(" ",getInnerBottom(),getInnerRight(),1,1);
+		vert = new ScrollBar(ScrollBar.VERTICAL, curses(),new Position(getInnerTop(), getInnerRight()), getSize().getLines()-1);
+		horz = new ScrollBar(ScrollBar.HORIZONTAL, curses(),new Position(getInnerBottom(),getInnerLeft()),getSize().getCols()-1);
+		corner = new Button(" ",curses(),new Position(getInnerBottom(),getInnerRight()),1);
 		intAddChild(vert);
 		intAddChild(horz);
 		intAddChild(corner);
@@ -210,13 +211,11 @@ public class ScrollPane<T extends Component> extends Container<Component> implem
 	
 
 
-	@Override
 	public void sizeChanged(Component src) {
 		if(src==innerComponent)
 			computeMaxes();
 	}
 
-	@Override
 	public void receiveEvent(Event e) {
 		if(e instanceof RedrawEvent){
 			notifyDisplayChange();

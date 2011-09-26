@@ -2,6 +2,8 @@ package fun.useless.curses.ui.components;
 
 import java.util.Enumeration;
 
+import fun.useless.curses.Curses;
+import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.WindowManager;
 import fun.useless.curses.ui.event.ActionEvent;
@@ -19,12 +21,12 @@ public class MenuBar extends AbstractMenu implements FinishedActionListener{
 	 */
 	private int selectedIndex = -1;
 	
-	public MenuBar(WindowManager m) {
-		super(1,m.getWidth(),m);
+	public MenuBar(Curses cs,WindowManager m) {
+		super(cs,new Dimension(1,m.getWidth()),m);
 		clear();
 	}
 	
-	public void addPopUp(String title,PopUp menu){
+	public synchronized void addPopUp(String title,PopUp menu){
 		int offset = 0;
 		Enumeration<MenuItem> ec = children();
 		while(ec.hasMoreElements()){
@@ -33,7 +35,7 @@ public class MenuBar extends AbstractMenu implements FinishedActionListener{
 			offset = Math.max(offset, right);
 		}
 		
-		MenuItem m = new MenuItem(title);
+		MenuItem m = new MenuItem(title,curses());
 		m.setPosition( new Position(0, offset) );
 		m.setTarget(menu);
 		m.setTargetPosition(1, offset);
@@ -75,7 +77,6 @@ public class MenuBar extends AbstractMenu implements FinishedActionListener{
 		super.processEvent(e);
 	}
 
-	@Override
 	public void actionFinished(FinishedActionEvent e) {
 		if(e.mustCloseParent())
 			notifyFinish(true);

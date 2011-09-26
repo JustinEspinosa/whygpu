@@ -18,6 +18,17 @@ public class Dimension {
 	public int getLines(){
 		return nLines;
 	}
+	@Override
+	public String toString() {
+		return "Dimension("+nLines+";"+nCols+")";
+	}
+	
+	public boolean includes(Position p){
+		return (p.getLine()>=0 && p.getCol()>=0 && p.getLine()<getLines() && p.getCol()<getCols());
+	}
+	public Dimension mutate(int vDiff,int hDiff){
+		return new Dimension(nLines+vDiff,nCols+hDiff);
+	}
 	public Dimension horizontal(int diff){
 		return new Dimension(nLines,nCols+diff);
 	}

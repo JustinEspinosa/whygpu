@@ -3,6 +3,8 @@ package fun.useless.curses.ui;
 import java.util.Enumeration;
 import java.util.Vector;
 
+import fun.useless.curses.term.io.InterruptIOException;
+
 
 /**
  * Buffers and simplifies rectangles
@@ -15,8 +17,10 @@ import java.util.Vector;
 public class RectangleBuffer {
 
 	private Vector<Rectangle> area = new Vector<Rectangle>();
+	private boolean wake = false;
 	
 	private void reduce(Rectangle r){
+
 		Enumeration<Rectangle> eR = area.elements();
 		
 		while(eR.hasMoreElements()){
@@ -31,11 +35,27 @@ public class RectangleBuffer {
 		area.add(r);
 	}
 	
-	public synchronized void addToArea(Rectangle r){
-		reduce(r);
+	public synchronized void wakeup(){
+		wake = true;
+		notify();
 	}
 	
-	public synchronized Rectangle[] getArea(){
+	public synchronized void addToArea(Rectangle r){
+		reduce(r);
+		notify();
+	}
+	
+	public synchronized Rectangle[] getArea() throws InterruptIOException{
+		if(area.isEmpty())
+			try {
+				wait();
+			} catch (InterruptedException e) { e.printStackTrace(); }
+		
+		if(wake){
+			wake = false;
+			throw new InterruptIOException();
+		}
+		
 		Rectangle[] arrCpy = new Rectangle[area.size()];
 		area.toArray(arrCpy);
 		area.clear();

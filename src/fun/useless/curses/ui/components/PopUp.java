@@ -1,5 +1,6 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.WindowManager;
@@ -12,8 +13,8 @@ public class PopUp extends AbstractMenu {
 
 	private int maxCols = 30;
 	
-	public PopUp(int cols,WindowManager m) {
-		super(0,1,m);
+	public PopUp(Curses cs,int cols,WindowManager m) {
+		super(cs,new Dimension(0,1),m);
 		maxCols = cols;
 		setVisible(false);
 	}

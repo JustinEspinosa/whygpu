@@ -1,5 +1,6 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
 import fun.useless.curses.ui.Dimension;
@@ -28,11 +29,11 @@ public class ScrollBar extends Container<Button> {
 	private int userViewEnd = 100;
 	private int scrEnd;
 	
-	public ScrollBar(int type,int sLine,int sCol,int len) {
-		super(sLine, sCol, type==VERTICAL?len:1, type==HORIZONTAL?len:1);
-		setMinSize(type==VERTICAL?-1:1,type==HORIZONTAL?-1:1);
+	public ScrollBar(int type,Curses cs,Position p,int len) {
+		super(cs,p, new Dimension(type==VERTICAL?len:1, type==HORIZONTAL?len:1) );
+		setMinSize(new Dimension(type==VERTICAL?-1:1,type==HORIZONTAL?-1:1));
 		scrollType = type;
-		setColor(ColorDefaults.getDefaultColor(ColorType.WINDOW));
+		setColor(ColorDefaults.getDefaultColor(ColorType.WINDOW,curses()));
 		scrEnd = len -1;
 		clear();
 		createControls();
@@ -72,9 +73,9 @@ public class ScrollBar extends Container<Button> {
 	}
 	
 	private void createControls(){
-		next = new Button(nextText(),getVEnd(),getHEnd(),1);
-		prev = new Button(prevText(),0,0,1);
-		grip = new Button(" ",gripSLine(),gripSCol(),gripLines(),gripCols());
+		next = new Button(nextText(),curses(),new Position(getVEnd(),getHEnd()),1);
+		prev = new Button(prevText(),curses(),new Position(0,0),1);
+		grip = new Button(" ",curses(),new Position(gripSLine(),gripSCol()),new Dimension(gripLines(),gripCols()));
 		
 		intAddChild(grip);
 		intAddChild(next);

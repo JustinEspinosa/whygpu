@@ -1,47 +1,70 @@
 package fun.useless.curses.ui.components;
 
-import fun.useless.curses.ui.ColorChar;
+import java.util.Enumeration;
+import java.util.Vector;
+
+import fun.useless.curses.Curses;
+import fun.useless.curses.lang.ColorChar;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
+import fun.useless.curses.ui.event.ActionEvent;
+import fun.useless.curses.ui.event.ActionListener;
+import fun.useless.curses.ui.event.CharacterCodeEvent;
 import fun.useless.curses.ui.event.Event;
 import fun.useless.curses.ui.event.EventReceiver;
 import fun.useless.curses.ui.event.PositionChangeListener;
 import fun.useless.curses.ui.event.PositionChangedEvent;
 import fun.useless.curses.ui.event.RedrawEvent;
+import fun.useless.curses.ui.event.UiEvent;
+import fun.useless.curses.ui.event.UiInputEvent;
 
 public class LineEdit extends Container<Component> implements PositionChangeListener, EventReceiver{
 
 	private LineTextField textField;
 	private Button leftArrow;
 	private Button rightArrow;
+	private Vector<ActionListener> aListeners = new Vector<ActionListener>();
 	
-	public LineEdit(int sLine, int sCol, int cols) {
-		super(sLine, sCol, 1, cols);
-		textField = new LineTextField(0, 0);
+	public LineEdit(Curses cs,Position p,int cols) {
+		super(cs,p, new Dimension(1, cols));
+		textField = new LineTextField(curses(),new Position(0,0));
 		intAddChild(textField);
 		setFocusNoNotify(textField);
 		
-		leftArrow = new Button("<",0,0,1,1);
+		leftArrow = new Button("<",curses(),new Position(0,0),new Dimension(1,1));
 		leftArrow.setVisible(false);
 		intAddChild(leftArrow);
-		rightArrow = new Button(">",0,cols-1,1,1);
+		rightArrow = new Button(">",curses(),new Position(0,cols-1),new Dimension(1,1));
 		rightArrow.setVisible(false);
 		intAddChild(rightArrow);
 		textField.addPositionChangeListener(this);
 		
-		setColor(ColorDefaults.getDefaultColor(ColorType.EDIT));
+		setColor(ColorDefaults.getDefaultColor(ColorType.EDIT,curses()));
 		clear();
 		
 		disableChildrenEventSending();
-		
-		
 		
 		notifyDisplayChange();
 	}
 	
 	private void disableChildrenEventSending(){
 		textField.setEventReceiver(this);
+	}
+	
+	public void removeActionListener(ActionListener l){
+		aListeners.remove(l);
+	}
+	
+	public void addActionListener(ActionListener l){
+		aListeners.add(l);
+	}
+	
+	protected final void notifyAction(ActionEvent e){
+		Enumeration<ActionListener> eA = aListeners.elements();
+		while(eA.hasMoreElements())
+			eA.nextElement().actionPerformed(e);
 	}
 	
 	@Override
@@ -61,11 +84,15 @@ public class LineEdit extends Container<Component> implements PositionChangeList
 	public void setText(String text){
 		textField.setText(text);
 	}
+	
+	public void setReplacementChar(char c){
+		textField.setReplacementChar(c);
+	}
+	
 	public String getText(){
 		return textField.getText();
 	}
 
-	@Override
 	public void positionChanged(PositionChangedEvent e) {
 		if(e.getSource()==textField){
 			scrollToCursor();
@@ -76,12 +103,10 @@ public class LineEdit extends Container<Component> implements PositionChangeList
 	
 	@Override
 	public ColorChar getCharAt(int line, int col) {
-		// TODO Auto-generated method stub
 		ColorChar cc = super.getCharAt(line, col);
 		return cc;
 	}
 
-	@Override
 	public void receiveEvent(Event e) {
 		if(e instanceof RedrawEvent){
 			notifyDisplayChange();
@@ -90,5 +115,17 @@ public class LineEdit extends Container<Component> implements PositionChangeList
 		}
 	}
 	
-
+    @Override
+    public void processEvent(UiEvent e) {
+		if(e instanceof UiInputEvent){
+			UiInputEvent uie = (UiInputEvent) e;
+			if(uie.getOriginalEvent() instanceof CharacterCodeEvent){
+				if( ((CharacterCodeEvent)uie.getOriginalEvent()).getChar() == 13){
+					notifyAction(new ActionEvent(this));
+					return;
+				}
+			}
+		}
+		super.processEvent(e);
+    }
 }

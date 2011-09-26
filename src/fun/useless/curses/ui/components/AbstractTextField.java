@@ -3,8 +3,11 @@ package fun.useless.curses.ui.components;
 import java.util.Enumeration;
 import java.util.Vector;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.event.PositionChangeListener;
 import fun.useless.curses.ui.event.PositionChangedEvent;
 import fun.useless.curses.ui.event.TextChangeListener;
@@ -22,9 +25,9 @@ public abstract class AbstractTextField extends Component {
 		return ( c > 31 && c < 127);
 	}
 	
-	public AbstractTextField(int sLine, int sCol, int lines, int cols) {
-		super(sLine, sCol, lines, cols);
-		setColor(ColorDefaults.getDefaultColor(ColorType.EDIT));
+	public AbstractTextField(Curses cs,Position p,Dimension d) {
+		super(cs,p,d);
+		setColor(ColorDefaults.getDefaultColor(ColorType.EDIT,curses()));
 	}
 	
 	protected abstract void drawContent();

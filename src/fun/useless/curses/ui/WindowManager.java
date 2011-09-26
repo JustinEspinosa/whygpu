@@ -8,7 +8,10 @@ import java.util.Vector;
 import fun.useless.curses.Curses;
 import fun.useless.curses.application.Application;
 import fun.useless.curses.application.ApplicationFactory;
+import fun.useless.curses.application.FactoryLocator;
 import fun.useless.curses.application.RootApplication;
+import fun.useless.curses.lang.ColorChar;
+import fun.useless.curses.term.io.InterruptIOException;
 import fun.useless.curses.ui.components.Component;
 import fun.useless.curses.ui.components.MenuBar;
 import fun.useless.curses.ui.components.MenuPlane;
@@ -21,10 +24,12 @@ import fun.useless.curses.ui.event.CursorControlEvent;
 import fun.useless.curses.ui.event.Event;
 import fun.useless.curses.ui.event.EventReceiver;
 import fun.useless.curses.ui.event.RedrawEvent;
+import fun.useless.curses.ui.event.StopUIThread;
 import fun.useless.curses.ui.event.TermKeyEvent;
 import fun.useless.curses.ui.event.TerminalInputEvent;
 import fun.useless.curses.ui.event.UiEvent;
 import fun.useless.curses.ui.event.UiInputEvent;
+import fun.useless.xfer.ZModem;
 
 
 public class WindowManager implements EventReceiver {
@@ -37,6 +42,7 @@ public class WindowManager implements EventReceiver {
 			history.add(new Integer(c));
 			checkHistory();
 		}
+		
 		private int[] vectorToArray(Vector<Integer> h){
 			int[] a=new int[h.size()];
 			for(int n=0;n<h.size();n++)
@@ -44,6 +50,7 @@ public class WindowManager implements EventReceiver {
 			
 			return a;
 		}
+		
 		private void checkHistory(){
 			int[] ah = vectorToArray(history);
 			int num = detector.countMatches(ah);
@@ -98,6 +105,11 @@ public class WindowManager implements EventReceiver {
 		public void addRect(Rectangle r){
 			buffer.addToArea(r);
 		}
+		
+		public void wakeup(){
+			buffer.wakeup();
+		}
+		
 		private synchronized boolean isRunning(){
 			return redrawrunnig;
 		}
@@ -108,19 +120,39 @@ public class WindowManager implements EventReceiver {
 		public void run(){
 			while(this.isRunning()){
 				try{
-					Rectangle[] rArray= buffer.getArea();
 					
+					Rectangle[] rArray= buffer.getArea();
 					for(int n=0;n<rArray.length;n++){
 						redraw(rArray[n]);
 					}
 					
-					sleep(50);
+				}catch(InterruptIOException no){
+					
+					
 				}catch(Exception e){
-					this.stopMe();
+					WindowManager.this.stop();
+					
+				}finally{
+
+					boolean wmIsSuspended = false;
+					
+					synchronized(WindowManager.this){
+						wmIsSuspended = suspended;
+						WindowManager.this.notify();
+					}
+					
+					if(wmIsSuspended){
+						synchronized(this){
+							try {
+								wait();
+							} catch (InterruptedException e) { 
+								e.printStackTrace();
+							}
+						}
+					}
 				}
 			}
 		}
-		
 	}
 
 	private final class UIThread extends Thread{
@@ -141,10 +173,14 @@ public class WindowManager implements EventReceiver {
 			while(this.isRunning()){
 				try{
 					Event ev = evQueue.pop();
-					if(ev!=null)
-						processEvent(ev);
+					if(ev!=null){
+						if(ev instanceof StopUIThread)
+							stopMe();
+						else
+							processEvent(ev);
+					}
+
 				}catch(InterruptedException ie){
-					stopMe();
 				}
 			}
 		}
@@ -158,6 +194,13 @@ public class WindowManager implements EventReceiver {
 	private TerminalInputEventer eventer     = new TerminalInputEventer();
 	private EscapeDetector       detector    = new EscapeDetector();
 	private boolean              running     = false;
+	private FactoryLocator       appList = new FactoryLocator();
+	
+	private UiEventProcessorFactory processorFactory = new UiEventProcessorFactory() {
+		public UiEventProcessor createProcessor(UiEvent e, RootPlane<?> plane) {
+			return new UiEventProcessor(e,plane);
+		}
+	};
 	
 	private RootApplication      rootApplication;
 	private Application          currentApp;
@@ -166,16 +209,28 @@ public class WindowManager implements EventReceiver {
 	private WindowPlane          windowPlane;
 	private MenuPlane            menuPlane;
 	private Curses               crs;
+	private boolean suspended;
 	
 	public WindowManager(Curses c) throws IOException{
-		crs = c;
-		menuPlane       = new MenuPlane(this,0, 0, crs.lines(), crs.cols());
-		windowPlane     = new WindowPlane(this,0,0,crs.lines(),crs.cols());
-		rootApplication = new RootApplication();
-		activePlane     = windowPlane;
-		termInput       = crs.getTerminal().getInputStream();
+		this(c,null);
 	}
 	
+	public WindowManager(Curses c, RootApplication root) throws IOException{
+		crs = c;
+		menuPlane       = new MenuPlane(this,crs,new Position(0, 0),new Dimension(crs.lines(), crs.cols()));
+		windowPlane     = new WindowPlane(this,crs,new Position(0,0),new Dimension(crs.lines(),crs.cols()));
+		
+		if(root==null)
+			root = new RootApplication();
+		
+		rootApplication = root;
+		activePlane     = windowPlane;
+		termInput       = crs.getTerminal().getInputStream();
+	}	
+	
+	public void setProcessorFactory(UiEventProcessorFactory factory){
+		processorFactory = factory;
+	}
 	
 	private void focusMenuBar(MenuBar m){
 		menuPlane.bringToFront(m);
@@ -196,13 +251,13 @@ public class WindowManager implements EventReceiver {
 	}
 	
 	public MenuBar newMenuBar(){
-		MenuBar m = new MenuBar(this);
+		MenuBar m = new MenuBar(crs,this);
 		menuPlane.addChild(m);
 		return m;
 	}
 	
 	public PopUp newPopUp(int cols){
-		PopUp p = new PopUp(cols,this);
+		PopUp p = new PopUp(crs,cols,this);
 		menuPlane.addChild(p);
 		return p;
 	}
@@ -215,6 +270,9 @@ public class WindowManager implements EventReceiver {
 		windowPlane.addAndMakeActive(w);
 	}
 
+	public Window topMostWindow(Application app){
+		return windowPlane.getTopMostWindow(app);
+	}
 	
 	public int getWidth(){
 		try {
@@ -222,6 +280,84 @@ public class WindowManager implements EventReceiver {
 		} catch (IOException e) {
 			return 80;
 		}
+	}
+	
+	
+	private void suspendRead(){
+		crs.getTerminal().wakeup();
+		
+		synchronized(this){
+			try{
+				wait();
+			}catch(InterruptedException ie){
+				ie.printStackTrace();
+			}
+		}
+	}
+	private void suspendRedraw(){
+		rdThread.wakeup();
+		
+		synchronized(this){
+			
+			try{
+				wait();
+			}catch(InterruptedException ie){
+				ie.printStackTrace();
+			}
+			
+		}
+	}
+	public void suspend(){
+		
+		synchronized(this){
+			suspended = true;
+		}
+		
+		suspendRedraw();
+		suspendRead();
+		
+		try {
+			crs.rmcup();
+			crs.clear();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void resumeRead(){
+		synchronized(this){
+			notify();
+		}
+	}
+	
+	private void resumeRedraw(){
+		synchronized(rdThread){
+			rdThread.notify();
+		}
+	}
+	
+	public void resume(){
+		
+		synchronized(this){
+			suspended = false;
+		}
+		
+		try {
+			crs.smcup();
+			crs.invalidateDoubleBuffering();
+			crs.showWindow(windowPlane);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		resumeRead();
+		
+		resumeRedraw();
+		
+	}
+	
+	public ZModem createZModem(){
+		return new ZModem(crs.getTerminal().getInputStream(),crs.getTerminal().getOutputStream());
 	}
 	
 	/**
@@ -237,17 +373,26 @@ public class WindowManager implements EventReceiver {
 	 * @param a
 	 */
 	public void unregisterApplication(Application a){
+		
+		releaseFocus(menuPlane);
 		runningApps.remove(a);
+			
 		nextApplication();
 	}
 	
 	
 	public void activateApplication(Application a){
+		
 		currentApp = a;
+		
 		windowPlane.informOfCurrentlyActiveApplication(currentApp);
-		windowPlane.activateList(a.getWindows());
-		menuPlane.bringToFront(a.getMenuBar(), false);
+		
+		windowPlane.activateList(currentApp.getWindows());
+		
+		menuPlane.bringToFront(currentApp.getMenuBar(), false);
+		
 		windowPlane.refreshStatus();
+		
 		receiveEvent(new RedrawEvent(windowPlane, new Rectangle(windowPlane.getPosition(), windowPlane.getSize())));
 	}
 	
@@ -277,7 +422,7 @@ public class WindowManager implements EventReceiver {
 	}
 	
 	/**
-	 * Receive all the events comming from the terminal stream.
+	 * Receive all the events coming from the terminal stream.
 	 */
 	private void processEvent(Event e){
 		
@@ -300,6 +445,7 @@ public class WindowManager implements EventReceiver {
 					crs.civis();
 				
 			}catch(IOException ioe){
+				ioe.printStackTrace();
 			}
 			return;
 		}		
@@ -341,36 +487,41 @@ public class WindowManager implements EventReceiver {
 					
 				}
 			}
-			activePlane.processEvent(new UiInputEvent((TerminalInputEvent)e));
+			(processorFactory.createProcessor(new UiInputEvent((TerminalInputEvent)e),activePlane)).start();
 		}
 		
 		if(e instanceof UiEvent){
-			windowPlane.processEvent((UiEvent)e);
+			(processorFactory.createProcessor((UiEvent)e,windowPlane)).start();
 		}
 		
 		/**** EXIT Hook ****/
-		if(e instanceof TermKeyEvent)
-			if( ((TermKeyEvent)e).getKey()==TermKeyEvent.EXIT )
-				stop();
+		/*
+		 * if(e instanceof TermKeyEvent)
+		 * if( ((TermKeyEvent)e).getKey()==TermKeyEvent.EXIT )
+		 *		stop();
+		 */
 	}
 	public synchronized void stop(){
+		
+		rdThread.stopMe();
+		intThread.stopMe();
 		running = false;
+		
+		postEvent(new StopUIThread(this));
+		
+		rdThread.wakeup();
+		
 		try{
 			crs.rmcup();
-			crs.getTerminal().writeCommand("me", crs.lines());
 			crs.clear();
-			crs.getTerminal().writeCommand("r1", crs.lines());
-			crs.getTerminal().writeCommand("r2", crs.lines());
-			crs.getTerminal().writeCommand("r3", crs.lines());
-			try {Thread.sleep(50);} catch (InterruptedException e) {}
-			crs.getTerminal().closeChannel();
 		}catch(IOException ioe){
-			ioe.printStackTrace();
 		}
-		rdThread.stopMe();
-		rdThread.interrupt();
-		intThread.stopMe();
-		intThread.interrupt();
+
+		try {
+			crs.getTerminal().closeChannel();
+		} catch (IOException e) {
+		}
+
 	}
 	public synchronized boolean isRunning(){
 		return running;
@@ -389,12 +540,37 @@ public class WindowManager implements EventReceiver {
 		rootApplication.begin(this);
 		try{
 			while(isRunning()){
-				eventer.put(termInput.read());
+				try{
+					
+					int b = termInput.read();
+					if(b==0xffffffff)
+						break;
+					
+					eventer.put(b);
+				
+				}catch(InterruptIOException exp){
+					
+					//exp.printStackTrace();
+					
+					synchronized(this){
+						notify();
+					
+						if(suspended){
+							try{
+								wait();
+							}catch(InterruptedException ie){
+								ie.printStackTrace();
+							}
+						}
+						
+					}
+				}
 			}
 		}catch(ClosedChannelException cee){
 		}
 		
-		
+		if(isRunning())
+			stop();
 	}
 	
 	public ColorChar getTopCharAt(int line,int col){
@@ -409,6 +585,21 @@ public class WindowManager implements EventReceiver {
 		crs.drawColorCharArray(windowPlane.getPartialContent(sLine, sCol, lines, cols), sLine, sCol);
 	}
 	
+	
+	@SuppressWarnings("unchecked")
+	public <T extends Application> T getApplication(Class<T> app){
+		ApplicationFactory fact = appList.locate(app);
+		if(fact==null)
+			return null;
+		T a = (T) fact.createInstance();
+		a.begin(this);
+		return a;
+	}
+	
+	public void addToAppPool(Class<? extends Application> app, ApplicationFactory factory){
+		appList.register(app, factory);
+	}
+	
 	public void submitApplicationToMenu(ApplicationFactory factory){
 		rootApplication.addToApplicationMenu(factory);
 	}
@@ -417,13 +608,24 @@ public class WindowManager implements EventReceiver {
 		evQueue.put(e);
 	}
 
-	@Override
 	public void receiveEvent(Event e) {
 		if(isRunning()) postEvent(e);		
 	}
 
 	public void releaseWindow(Window w) {
 		windowPlane.removeChild(w);
+	}
+	
+	public WindowPlane getWindowPlane(){
+		return windowPlane;
+	}
+	
+	public Application getCurrentApplication(){
+		return currentApp;
+	}
+	
+	public Curses getCurses(){
+		return crs;
 	}
 	
 }

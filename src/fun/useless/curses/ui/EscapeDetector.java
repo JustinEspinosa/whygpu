@@ -5,12 +5,12 @@ import java.util.Collections;
 import fun.useless.curses.ui.event.TermKeyEvent;
 import fun.useless.curses.ui.util.SequenceDescription;
 import fun.useless.curses.ui.util.SequenceDescriptionComparator;
-import fun.useless.curses.ui.util.SortedVector;
+import fun.useless.curses.ui.util.SortedList;
 
 
 public final class EscapeDetector{
 	private SequenceDescriptionComparator comp = new SequenceDescriptionComparator();
-	private SortedVector<SequenceDescription> data = new SortedVector<SequenceDescription>(comp);
+	private SortedList<SequenceDescription> data = new SortedList<SequenceDescription>(comp);
 	
 	EscapeDetector(){
 		buildDB();
@@ -49,7 +49,7 @@ public final class EscapeDetector{
 			return 0;
 		
 		int[] s1 = d.getSequence(); 
-		int[] s2 = data.elementAt(n).getSequence();
+		int[] s2 = data.get(n).getSequence();
 		
 		
 		if(s1.length>s2.length)
@@ -65,6 +65,6 @@ public final class EscapeDetector{
 		int n  = Collections.binarySearch(data, d, comp);
 		if(n<0)
 			return -1;
-		return data.elementAt(n).getKeyId();
+		return data.get(n).getKeyId();
 	}
 }

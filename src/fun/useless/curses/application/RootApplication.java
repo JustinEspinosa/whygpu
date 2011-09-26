@@ -19,12 +19,11 @@ public class RootApplication extends Application {
 	private class AboutWindow extends Window{
 
 		public AboutWindow(Position position) {
-			super("About",RootApplication.this, position, new Dimension(4, 20));
+			super("About",RootApplication.this,RootApplication.this.curses(), position, new Dimension(4, 20));
 			
-			Label l = new Label("Java Terminal IO",1,1,1,18);
-			Button ok = new Button("OK",2,4,12);
+			Label l = new Label("Java Terminal IO",curses(),new Position(1,1),new Dimension(1,18));
+			Button ok = new Button("OK",curses(), new Position(2,4),12);
 			ok.addActionListener(new ActionListener() {
-				@Override
 				public void actionPerformed(ActionEvent e) {
 					close();
 				}
@@ -38,12 +37,11 @@ public class RootApplication extends Application {
 		
 	}
 	
-	private class ApplicationLauncher implements ActionListener{
+	protected class ApplicationLauncher implements ActionListener{
 		private ApplicationFactory factory;
 		private ApplicationLauncher(ApplicationFactory f){
 			factory = f;
 		}
-		@Override
 		public void actionPerformed(ActionEvent e) {
 			Application a = factory.createInstance();
 			a.begin(getWindowManager());
@@ -51,7 +49,7 @@ public class RootApplication extends Application {
 		
 	}
 	
-	private Vector<MenuItem> submitedItems = new Vector<MenuItem>();
+	private Vector<MenuItem>       submitedItems = new Vector<MenuItem>();
 	private AboutWindow            about;
 	private HelpApplicationFactory help = new HelpApplicationFactory();
 	private PopUp                  applicationMenu;
@@ -68,16 +66,15 @@ public class RootApplication extends Application {
 		PopUp helpMenu = getWindowManager().newPopUp(20);
 		applicationMenu = getWindowManager().newPopUp(30);
 		
-		MenuItem helpShortcuts   = new MenuItem(help.getDisplayName());
+		MenuItem helpShortcuts   = new MenuItem(help.getDisplayName(),curses());
 		helpShortcuts.addActionListener(new ApplicationLauncher(help));
 		
 		helpMenu.addItem(helpShortcuts);
 		
 		about = new AboutWindow(getWindowManager().getNextWindowPosition());
 		
-		MenuItem aboutmenu = new MenuItem("About");
+		MenuItem aboutmenu = new MenuItem("About",curses());
 		aboutmenu.addActionListener(new ActionListener() {
-			@Override
 			public void actionPerformed(ActionEvent e) {
 				showWindow(about);
 			}
@@ -100,17 +97,21 @@ public class RootApplication extends Application {
 	void defaultMenu() {}
 
 	@Override
-	public String getName() {
+	protected String name() {
 		return "Root";
 	}
 	
-	public void addToApplicationMenu(ApplicationFactory factory){
-		MenuItem menu = new MenuItem(factory.getDisplayName());
-		menu.addActionListener(new ApplicationLauncher(factory));
+	protected void addAppMenu(MenuItem menu){
 		if(applicationMenu!=null)
 			applicationMenu.addChild(menu);
 		else
 			submitedItems.add(menu);
+	}
+	
+	public void addToApplicationMenu(ApplicationFactory factory){
+		MenuItem menu = new MenuItem(factory.getDisplayName(),curses());
+		menu.addActionListener(new ApplicationLauncher(factory));
+		addAppMenu(menu);
 	}
 
 }

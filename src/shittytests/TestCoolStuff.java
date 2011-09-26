@@ -5,12 +5,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.channels.InterruptibleChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.TreeMap;
 
 import fun.useless.curses.Curses;
+import fun.useless.curses.net.GeneralSocketIO;
 import fun.useless.curses.term.Terminal;
 import fun.useless.curses.term.io.TelnetIO;
 import fun.useless.curses.term.termcap.TermCap;
@@ -39,7 +39,7 @@ public class TestCoolStuff extends Thread{
 	public TestCoolStuff() throws IOException{
 		this(null,null,null);
 	}
-	public TestCoolStuff(InputStream i,OutputStream o, InterruptibleChannel c) throws IOException{
+	public TestCoolStuff(InputStream i,OutputStream o, GeneralSocketIO io) throws IOException{
 		
 		createMenu();
 		
@@ -70,7 +70,7 @@ public class TestCoolStuff extends Thread{
 			preTelnet.will(TelnetIO.ECHO);
 			preTelnet.will(TelnetIO.LINEMODE);
 
-			term = new Terminal(capdb.getTermType(trm),c);
+			term = new Terminal(capdb.getTermType(trm), io);
 			telnet = new TelnetIO(term.getInputStream(), term.getOutputStream());
 			term.replaceInputStream(telnet.makeHookedInputStream());
 		}
@@ -234,7 +234,7 @@ public class TestCoolStuff extends Thread{
 		
 		while( ( client = server.accept() ) != null){
 			Socket s = client.socket();
-			TestCoolStuff coolStuff = new TestCoolStuff(s.getInputStream(),s.getOutputStream(),client);
+			TestCoolStuff coolStuff = new TestCoolStuff(s.getInputStream(),s.getOutputStream(), new GeneralSocketIO(client));
 			coolStuff.start();
 		}
 	

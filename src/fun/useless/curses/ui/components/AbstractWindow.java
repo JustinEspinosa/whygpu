@@ -1,15 +1,18 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorPair;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 
 
 public abstract class AbstractWindow<T extends Component> extends MutableContainer<T> {
 	private String wndTitle;
 	
-	public AbstractWindow(String title,int sLine,int sCol,int lines,int cols){
-		super(sLine,sCol,lines,cols);
+	public AbstractWindow(String title,Curses cs,Position p,Dimension d){
+		super(cs,p,d);
 		wndTitle=title;
 	}
 	
@@ -28,12 +31,16 @@ public abstract class AbstractWindow<T extends Component> extends MutableContain
 		return 0;
 	}
 	
-	@Override
-	protected void border(){		
+	protected abstract boolean isActive();
+	
+	
+	private void drawDecoration(){
 		int col;
 		
-		ColorPair oldcol = getColor();
-		setColor(ColorDefaults.getDefaultColor(ColorType.TITLEBAR));
+		if( isActive() )
+			setColor(ColorDefaults.getDefaultColor(ColorType.TITLEBAR,curses()));
+		else
+			setColor(ColorDefaults.getDefaultColor(ColorType.GREYED,curses()));
 		
 		for(col=0;col< getSize().getCols();col++)
 			setChar(0,col,'#', true);
@@ -42,6 +49,15 @@ public abstract class AbstractWindow<T extends Component> extends MutableContain
 		col = mid - (wndTitle.length()/2);
 		
 		printAt(0, col-1," " + wndTitle + " ", true);
+	}
+	
+	
+	@Override
+	protected void border(){		
+		
+		ColorPair oldcol = getColor();
+
+		drawDecoration();
 		
 		setColor(oldcol);
 		

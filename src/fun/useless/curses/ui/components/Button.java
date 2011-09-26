@@ -3,8 +3,11 @@ package fun.useless.curses.ui.components;
 import java.util.Enumeration;
 import java.util.Vector;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.event.ActionEvent;
 import fun.useless.curses.ui.event.ActionListener;
 import fun.useless.curses.ui.event.CharacterCodeEvent;
@@ -22,14 +25,15 @@ public class Button extends Component implements SignalReceiver{
 	private Boolean animationState = false;
 	private Vector<ActionListener> aListeners = new Vector<ActionListener>();
 
-	public Button(String txt,int sLine, int sCol, int cols) {
-		this(txt,sLine, sCol, 1, cols);
+	public Button(String txt,Curses cs,Position p, int cols) {
+		this(txt,cs,p, new Dimension(1, cols));
 	}
-	public Button(String txt,int sLine, int sCol,int lines, int cols) {
-		super(sLine, sCol, lines, cols);
+	
+	public Button(String txt,Curses cs,Position p,Dimension d) {
+		super(cs,p,d);
 		oText = txt;
 		cText = oText;
-		setColor(ColorDefaults.getDefaultColor(ColorType.BUTTON));
+		setColor(ColorDefaults.getDefaultColor(ColorType.BUTTON,cs));
 		update();
 	}
 	
@@ -106,7 +110,6 @@ public class Button extends Component implements SignalReceiver{
 		super.processEvent(e);
 	}
 
-	@Override
 	public void signalReceived() {
 		synchronized (animationState) {
 

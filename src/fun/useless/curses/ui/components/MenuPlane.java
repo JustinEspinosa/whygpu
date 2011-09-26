@@ -1,5 +1,8 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.WindowManager;
 import fun.useless.curses.ui.event.FinishedActionEvent;
 import fun.useless.curses.ui.event.FinishedActionListener;
@@ -7,8 +10,8 @@ import fun.useless.curses.ui.event.FinishedActionListener;
 
 public class MenuPlane extends RootPlane<AbstractMenu> implements FinishedActionListener{
 
-	public MenuPlane(WindowManager m,int sLine, int sCol, int lines, int cols) {
-		super(m,"_transp_",sLine, sCol, lines, cols);
+	public MenuPlane(WindowManager m,Curses cs,Position p,Dimension d) {
+		super(m,"_transp_",cs,p,d);
 		//allows to draw children over transparent places
 		transparent = true;
 		setEventReceiver(getWindowManager());
@@ -25,7 +28,6 @@ public class MenuPlane extends RootPlane<AbstractMenu> implements FinishedAction
 		c.addFinishedActionListener(this);
 	}
 	
-	@Override
 	public void actionFinished(FinishedActionEvent e) {
 		if(e.getSource() instanceof AbstractMenu){
 			if(e.mustCloseParent()){

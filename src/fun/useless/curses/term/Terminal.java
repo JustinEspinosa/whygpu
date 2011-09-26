@@ -5,14 +5,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InvalidClassException;
 import java.io.OutputStream;
 import java.nio.channels.InterruptibleChannel;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 
-import fun.useless.curses.term.io.ChannelInputStream;
-import fun.useless.curses.term.io.ChannelOutputStream;
+import fun.useless.curses.net.SocketIO;
+import fun.useless.curses.term.io.NoWaitIOLock;
 import fun.useless.curses.term.termcap.TermType;
 
 
@@ -26,28 +23,53 @@ public class Terminal {
 	}
 
 
+	private int cols;
+	private int lines;
+	private NoWaitIOLock nwLock = null;
 	private TermType type;
 	private InputStream  in;
 	private OutputStream out;
 	private InterruptibleChannel channel = null;
 	private int PC = 0;
+	private boolean ansiColors = false;
+	private int numColors = 1;
+	
 	private char[] wrbuffer = new char[1024]; 
 	private int    wroffset = 0;
 	
-	public Terminal(TermType t, InterruptibleChannel c) throws InvalidClassException{
+	public Terminal(TermType t, SocketIO sock) throws IOException{
 		type = t;
 		
-		if(c instanceof ReadableByteChannel)
-			in = new ChannelInputStream((ReadableByteChannel)c);
-		else
-			throw new InvalidClassException("Channel must be a ReadableByteChannel");
-		if(c instanceof WritableByteChannel)
-			out  = new ChannelOutputStream((WritableByteChannel)c);
-		else
-			throw new InvalidClassException("Channel must be a WritableByteChannel");	
+		in = sock.getInputStream();
+		out  = sock.getOutputStream();
+		channel = sock.getIOLock().channel();
 		
-		channel = c;
+		nwLock = sock.getIOLock();
+		
 		getFlags();
+	}
+	
+	public void wakeup(){
+		if(nwLock != null)
+			nwLock.wakeup();
+	}
+	
+	protected final void setPC(String v){
+		if(v!=null)
+			PC = escapeSequence(new StringWithPos(v));
+	}
+	protected final void setLines(int v){
+		lines = v;
+	}
+	protected final void setCols(int v){
+		cols = v;
+	}
+	protected final void setNumColors(int v){
+		numColors = v;
+	}
+	
+	protected final TermType type(){
+		return type;
 	}
 	
 	public Terminal(TermType t){
@@ -59,6 +81,8 @@ public class Terminal {
 	}
 	
 	public void closeChannel() throws IOException{
+		if(nwLock!=null)
+			nwLock.stopSelecting();
 		if(channel!=null)
 			channel.close();
 	}
@@ -75,17 +99,33 @@ public class Terminal {
 		in = i;
 	}
 	
-	private void getFlags()
-	{
+	public void replaceOutputStream(OutputStream o){
+		out = o;
+	}
+	
+	public int getNumColors(){
+		return numColors;
+	}
+	
+	protected void getFlags(){
 		String pc = type.getStr("pc");
 		if(pc!=null)
 			PC = escapeSequence(new StringWithPos(pc));
+		
+		ansiColors = type.getFlag("AX");
+		numColors  = type.getNum("Co");
+		if(numColors<0)
+			numColors = 1;
+		
+		cols = type.getNum("co");
+		lines = type.getNum("li");
 	}
 	
 	private void goWrite() throws IOException {
 		for(int i=0;i<wroffset;i++)
 			out.write( wrbuffer[i] );
 		
+		out.flush();
 		wroffset = 0;
 	}
 	
@@ -127,7 +167,6 @@ public class Terminal {
 				try{
 					return (char)Integer.parseInt(new String(arr,0,offset),8);
 				}catch(NumberFormatException e){
-					//TODO no dump
 					e.printStackTrace();
 				}
 			}
@@ -139,15 +178,18 @@ public class Terminal {
 	private void paddOut(long time) throws IOException
 	{
 		/* TODO: take the stream type into account: only pad on serial
-		 * speed under the value in the corr. capacity. don't pad over
-		 * IP or local
+		 * speed under the value in the corresponding capacity. do not pad over
+		 * IP or locally.
 		 */
 		long start = System.nanoTime();
 		while( (System.nanoTime()-start)<time )
 			out.write(PC);
+		
+		out.flush();
 	}
 	
-	private double extractPadding(int nblines,String cmd){
+	
+	protected double extractPadding(int nblines,String cmd){
 		int i=0;
 		StringBuilder b = new StringBuilder();
 		while( (cmd.charAt(i) >= 0x30 && cmd.charAt(i) <= 0x39) || cmd.charAt(i)=='.')
@@ -164,6 +206,7 @@ public class Terminal {
 		
 		return val;
 	}
+	
 	public void writeString(String str)
 	{
 		StringWithPos ptr = new StringWithPos(str);
@@ -171,6 +214,7 @@ public class Terminal {
 		while(ptr.pos<ptr.string.length())
 			writeNextChar(ptr);
 	}
+	
 	private int[] getBuffer(){
 		int[] r = new int[wroffset];
 		for(int n=0;n<wroffset;n++)
@@ -178,6 +222,11 @@ public class Terminal {
 		
 		wroffset = 0;
 		return r;
+	}
+	
+	public boolean hasCommand(String name){
+		String cap = type.getStr(name);
+		return (cap!=null);
 	}
 	
 	public int[] getCapacity(String name){
@@ -213,24 +262,23 @@ public class Terminal {
 		in.close();
 	}
 	
-	/* some programs can follow terminal emulator window size 
-	 * still don't know how it works. I assume it requires IO 
-	 * so I throw the not thrown IOException 
-	 */
-	public int getLines() throws IOException{
-		return type.getNum("li");
+
+	public int getLines() {
+		return lines;
 	}
 	
-	public int getCols() throws IOException{
-		return type.getNum("co");
+	public int getCols() {
+		return cols;
 	}
 	
-	public int getColorCount() throws IOException{
-		return type.getNum("Co");
+	
+	public boolean canAnsiColor(){
+		return ansiColors;
 	}
 	
 	public void writeChar(char c) throws IOException{
 		out.write((int)c);
+		out.flush();
 	}
 	public char getChar() throws IOException{
 		

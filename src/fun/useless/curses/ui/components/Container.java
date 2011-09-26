@@ -1,9 +1,12 @@
 package fun.useless.curses.ui.components;
 
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Vector;
 
-import fun.useless.curses.ui.ColorChar;
+import fun.useless.curses.Curses;
+import fun.useless.curses.lang.ColorChar;
+import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.Rectangle;
 import fun.useless.curses.ui.event.EventReceiver;
@@ -20,8 +23,8 @@ public class Container<T extends Component> extends Component{
 	 */
 	protected boolean transparent = false;
 
-	public Container(int sLine,int sCol,int lines,int cols){
-		super(sLine,sCol,lines,cols);
+	public Container(Curses cs,Position p,Dimension d){
+		super(cs,p,d);
 	}
 	
 
@@ -29,15 +32,13 @@ public class Container<T extends Component> extends Component{
 		bringToFront(c,true);
 	}
 	//Slow if lots of children
-	public void bringToFront(T c, boolean focus){
-		synchronized( childComponents ){
-			int i = childComponents.indexOf(c);
-			if(i >= 0 ){
-				childComponents.remove(i);
-				intAddChild(c);
-				if(focus)
-					setFocus(c);
-			}
+	public synchronized void bringToFront(T c, boolean focus){
+		int i = childComponents.indexOf(c);
+		if(i >= 0 ){
+			childComponents.remove(i);
+			intAddChild(c);
+			if(focus)
+				setFocus(c);
 		}
 	}
 	
@@ -45,53 +46,48 @@ public class Container<T extends Component> extends Component{
 		return focused;
 	}
 	
-	public int getChildCount(){
-		synchronized( childComponents ){
-			return childComponents.size();
-		}
+	public synchronized int getChildCount(){
+		return childComponents.size();
 	}
 
-	public T lastChild(){
-		synchronized( childComponents ){
-			return childComponents.lastElement();
+	public synchronized T lastChild(){
+		return childComponents.lastElement();
+	}
+	
+	public synchronized T firstChild(){
+		return childComponents.firstElement();
+	}
+	
+	protected synchronized final int getIndexOf(T comp){
+		if(childComponents.contains(comp))
+			return childComponents.indexOf(comp);
+		else
+			return -1;
+	}
+	
+	protected synchronized final T getAtIndex(int index){
+		try{
+			return childComponents.elementAt(index);
+		}catch(ArrayIndexOutOfBoundsException aioobe){
+			aioobe.printStackTrace();
+			return null;
 		}
 	}
 	
-	public T firstChild(){
-		synchronized( childComponents ){
-			return childComponents.firstElement();
-		}
+	protected synchronized void intRemoveChildren(){
+		Enumeration<T> ec = children();
+		while(ec.hasMoreElements())
+			ec.nextElement().setEventReceiver(null);
+		childComponents.clear();
 	}
 	
-	protected final int getIndexOf(T comp){
-		synchronized( childComponents ){
-			if(childComponents.contains(comp))
-				return childComponents.indexOf(comp);
-			else
-				return -1;
-		}
-	}
-	
-	protected final T getAtIndex(int index){
-		synchronized( childComponents ){
-			try{
-				return childComponents.elementAt(index);
-			}catch(ArrayIndexOutOfBoundsException aioobe){
-				return null;
-			}
-		}
-	}
-	
-	protected void intRemoveChild(T c){
-		synchronized( childComponents ){
-			childComponents.remove(c);
-		}
+	protected synchronized void intRemoveChild(T c){
+		childComponents.remove(c);
 		c.setEventReceiver(null);
 	}
-	protected void intAddChild(T c){
-		synchronized( childComponents ){
-			childComponents.add(c);
-		}
+	
+	protected synchronized void intAddChild(T c){
+		childComponents.add(c);
 		c.setEventReceiver(getEventReceiver());
 	}
 	
@@ -99,29 +95,32 @@ public class Container<T extends Component> extends Component{
 		
 		if(i>=getChildCount()) i=0;
 		
-		for(int n = i;n<getChildCount();n++){
-			if(childComponents.elementAt(n).acceptsFocus()){
-				setFocus(childComponents.elementAt(n));
+		for(int n = 0;n<getChildCount();n++){
+			int index = n+i;
+			if(index>=getChildCount())
+				index-=getChildCount();
+			
+			if(childComponents.elementAt(index).acceptsFocus()){
+				setFocus(childComponents.elementAt(index));
 				return;
 			}
 		}
 	}
-	public void cycleFocus(){
-		synchronized( childComponents ){
-			if(focused == null){
-				focusNextFocusable(0);
-				return;
-			}
-			int idx = childComponents.indexOf(focused);
-			if(idx > -1){
-				focusNextFocusable(idx+1);
-			}
+	
+	public synchronized void cycleFocus(){
+		if(focused == null){
+			focusNextFocusable(0);
+			return;
+		}
+		int idx = childComponents.indexOf(focused);
+		if(idx > -1){
+			focusNextFocusable(idx+1);
 		}
 		
 	}
 	
 	@Override
-	protected void setEventReceiver(EventReceiver l){
+	protected synchronized void setEventReceiver(EventReceiver l){
 		Enumeration<T> ec = children();
 		while(ec.hasMoreElements())
 			ec.nextElement().setEventReceiver(l);
@@ -129,20 +128,18 @@ public class Container<T extends Component> extends Component{
 	}
 	
 	@Override
-	public ColorChar getCharAt(int line,int col){
+	public synchronized ColorChar getCharAt(int line,int col){
 		
 		ColorChar cc = null;
 		ColorChar myCc = super.getCharAt(line, col);
 	
 		//don't draw children if i'm not under them
 		if(myCc!=null || transparent)
-			synchronized( childComponents ){
-				for( int z = childComponents.size() - 1 ; z >= 0 && cc==null; z--){
-					T c = childComponents.elementAt(z);
-					if(c.isVisible()) 
-						cc = c.getCharAt(line - c.getPosition().getLine(), col - c.getPosition().getCol());
-				}
-			}
+			for( int z = childComponents.size() - 1 ; z >= 0 && cc==null; z--){
+				T c = childComponents.elementAt(z);
+				if(c.isVisible()) 
+					cc = c.getCharAt(line - c.getPosition().getLine(), col - c.getPosition().getCol());
+			}	
 		
 		if(cc == null)
 			cc = myCc;
@@ -200,20 +197,23 @@ public class Container<T extends Component> extends Component{
 		
 		return new Rectangle(line, col, lines, cols);
 	}
+
 	
-	protected Enumeration<T> children(){
-		synchronized( childComponents ){
-			return childComponents.elements();
-		}
+	protected synchronized Enumeration<T> rchildren(){
+		Vector<T> rlist = new Vector<T>(childComponents);
+		Collections.reverse(rlist);
+			return rlist.elements();
 	}
 	
-	public boolean hasChild(Component c){
-		synchronized( childComponents ){
-			return childComponents.contains(c);
-		}
+	protected synchronized Enumeration<T> children(){
+		return childComponents.elements();
 	}
 	
-	public final Rectangle convertPosition(Rectangle r,Component c){
+	public synchronized boolean hasChild(Component c){
+		return childComponents.contains(c);
+	}
+	
+	public synchronized final Rectangle convertPosition(Rectangle r,Component c){
 		
 		if(c==this) return r;
 		

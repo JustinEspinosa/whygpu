@@ -1,5 +1,6 @@
 package fun.useless.curses.application.help;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.application.Application;
 import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
@@ -10,12 +11,9 @@ public class HelpWindow extends Window{
 
 	private MultiLineEdit textContent;
 	
-	public HelpWindow(String title,Application app,Position position,Dimension dimension){
-		this(title,app, position.getLine(),position.getCol(),dimension.getLines(),dimension.getCols());
-	}
-	public HelpWindow(String title,Application app, int sLine, int sCol, int lines, int cols) {
-		super(title,app, sLine, sCol, lines, cols);
-		textContent = new MultiLineEdit(1, 0, lines-1, cols);	
+	public HelpWindow(String title,Application app,Curses cs,Position p,Dimension d){
+		super(title,app,cs,p,d);
+		textContent = new MultiLineEdit(curses(),new Position(1, 0), d.vertical(-1));	
 		addChild(textContent);
 		
 		textContent.setReadOnly(true);

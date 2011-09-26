@@ -3,6 +3,8 @@ package fun.useless.curses.application;
 import java.util.Enumeration;
 import java.util.Vector;
 
+import fun.useless.curses.Curses;
+import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.WindowManager;
 import fun.useless.curses.ui.components.MenuBar;
 import fun.useless.curses.ui.components.MenuItem;
@@ -22,12 +24,19 @@ public abstract class Application {
 	private MenuBar menu;
 	private Vector<Window> myWindows = new Vector<Window>();
 	private WindowManager manager;
+	private boolean started = false;
 	
 	/**
 	 * Call to start an app
 	 * @param man
 	 */
-	public final void begin(WindowManager man){
+	public synchronized final void begin(WindowManager man){
+		if(started){
+			manager.activateApplication(this);
+			return;
+		}
+		started=true;
+		
 		manager = man;
 		setMenuBar(manager.newMenuBar());
 
@@ -36,7 +45,7 @@ public abstract class Application {
 		manager.activateApplication(this);
 		
 		start();
-
+		
 	}
 	
 	public final WindowManager getWindowManager(){
@@ -46,7 +55,7 @@ public abstract class Application {
 	/**
 	 * Called to stop an app.
 	 */
-	public final void end(){
+	public synchronized final void end(){
 		Enumeration<Window> eMyWin = (new Vector<Window>(myWindows)).elements();
 		
 		while(eMyWin.hasMoreElements())
@@ -54,6 +63,7 @@ public abstract class Application {
 		
 		stop();
 		manager.unregisterApplication(this);
+		started = false;
 	}
 
 	/**
@@ -61,7 +71,13 @@ public abstract class Application {
 	 */
 	public abstract void stop();
 	public abstract void start();
-	public abstract String getName();
+	protected abstract String name();
+	public final String getName(boolean full){
+		if(full)
+			return name()+" ("+this.hashCode()+")";
+		
+		return name();
+	}
 	
 	
 	public final void showWindow(Window w){
@@ -78,9 +94,8 @@ public abstract class Application {
 	}
 	
 	void defaultMenu(){
-		MenuItem exitItem = new MenuItem("Exit "+getName());
+		MenuItem exitItem = new MenuItem("Exit "+getName(false), curses());
 		exitItem.addActionListener(new ActionListener() {
-			@Override
 			public void actionPerformed(ActionEvent e) {
 				end();
 			}
@@ -89,7 +104,7 @@ public abstract class Application {
 		PopUp appMenu = getWindowManager().newPopUp(30);
 		appMenu.addItem(exitItem);
 		
-		getMenuBar().addPopUp(getName(), appMenu);
+		getMenuBar().addPopUp(getName(false), appMenu);
 	}
 	
 	private final void setMenuBar(MenuBar m){
@@ -97,12 +112,29 @@ public abstract class Application {
 		defaultMenu();
 	}
 	
-	public MenuBar getMenuBar(){
+	public final MenuBar getMenuBar(){
 		return menu;
 	}
 
-	public Vector<Window> getWindows() {
+	public final Vector<Window> getWindows() {
 		return myWindows;
 	}
+	
+	public final Window topMostWindow(){
+		return getWindowManager().topMostWindow(this);
+	}
+	
+	public final Curses curses(){
+		return getWindowManager().getCurses();
+	}
+	
+	public final Position nextPosition(){
+		return getWindowManager().getNextWindowPosition();
+	}
+
+	public synchronized final boolean isStarted() {
+		return started;
+	}
+	
 	
 }

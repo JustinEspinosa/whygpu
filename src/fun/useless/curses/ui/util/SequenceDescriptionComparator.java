@@ -4,7 +4,6 @@ import java.util.Comparator;
 
 public class SequenceDescriptionComparator implements Comparator<SequenceDescription> {
 
-	@Override
 	public int compare(SequenceDescription arg0, SequenceDescription arg1) {
 		int[] seq0 = arg0.getSequence();
 		int[] seq1 = arg1.getSequence();

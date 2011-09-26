@@ -1,17 +1,20 @@
 package fun.useless.curses.ui.components;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorPair;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
+import fun.useless.curses.ui.Position;
 
 public class Label extends Component {
 
 	protected String text;
 	
-	public Label(String txt,int sLine, int sCol, int lines, int cols) {
-		super(sLine, sCol, lines, cols);
+	public Label(String txt,Curses cs,Position p,Dimension d) {
+		super(cs,p,d);
 		text = txt;
-		setColor(ColorDefaults.getDefaultColor(ColorType.WINDOW));
+		setColor(ColorDefaults.getDefaultColor(ColorType.WINDOW,curses()));
 		update();
 	}
 	

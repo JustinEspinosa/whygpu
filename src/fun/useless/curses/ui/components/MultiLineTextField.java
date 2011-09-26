@@ -3,7 +3,8 @@ package fun.useless.curses.ui.components;
 import java.util.Enumeration;
 import java.util.Vector;
 
-import fun.useless.curses.ui.ColorChar;
+import fun.useless.curses.Curses;
+import fun.useless.curses.lang.ColorChar;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorType;
 import fun.useless.curses.ui.Dimension;
@@ -27,8 +28,8 @@ public class MultiLineTextField extends AbstractTextField {
 	private int cursorLine = 0;
 	private boolean readOnly = false;
 	
-	public MultiLineTextField(int sLine, int sCol) {
-		super(sLine, sCol, 1, 1);
+	public MultiLineTextField(Curses cs,Position p) {
+		super(cs,p,new Dimension(1, 1) );
 		clear();
 		textContent.add(new StringBuilder());
 		drawContent();
@@ -62,40 +63,40 @@ public class MultiLineTextField extends AbstractTextField {
 		checkCursorLine();
 		checkCursorCol();
 	}
-	private void eraseCursor(){
+	
+	private synchronized void eraseCursor(){
 		if(cursorColValid()){
 			ColorChar cc = getCharAt(cursorLine, cursorCol);
 		
 			if(isCursorOn())
 				setChar(cursorLine, cursorCol, cc.getChr());
 		}
-	}	
-	private void drawCursor(){
+	}
+	
+	private synchronized void drawCursor(){
 		checkCursorPosition();
 		ColorChar cc = getCharAt(cursorLine, cursorCol);
 		
-		if(isCursorOn()){
+		if(isCursorOn() && cc!=null){
 			setColor(cc.getColors().invert());
 			setChar(cursorLine, cursorCol, cc.getChr());
-			setColor(ColorDefaults.getDefaultColor(ColorType.EDIT));
+			setColor(ColorDefaults.getDefaultColor(ColorType.EDIT,curses()));
 		}
 	}
 	
-	protected void drawContent(){
+	
+	protected synchronized void drawContent(){
 		int cLine = 0;
 		Enumeration<StringBuilder> lines = textContent.elements();
+		
+		setSize(new Dimension(getLineCount()+1,getLineWidth()+1));
 		clear();
-		setSize(new Dimension(1,1));
 		
 		while(lines.hasMoreElements()){
 			StringBuilder line = lines.nextElement();
-			if(getSize().getCols()<line.length()+1)
-				setSize(new Dimension(getSize().getLines(),line.length()+1));
 			
-			printAt(cLine++, 0, line.toString());
-			
-			if(lines.hasMoreElements())
-				setSize(getSize().vertical(1));
+			printAt(cLine, 0, line.toString());
+			++cLine;
 		}
 		
 		drawCursor();
@@ -103,12 +104,15 @@ public class MultiLineTextField extends AbstractTextField {
 	
 	private void deleteChar(){
 		checkCursorPosition();
+		
 		if(cursorCol>0){
 			textContent.elementAt(cursorLine).deleteCharAt(--cursorCol);
 		}else{
 			if(cursorLine>0){
+				StringBuilder line = textContent.elementAt(cursorLine);
 				textContent.remove(cursorLine--);
 				cursorCol = textContent.elementAt(cursorLine).length();
+				textContent.elementAt(cursorLine).append(line);
 			}
 		}
 		
@@ -129,6 +133,7 @@ public class MultiLineTextField extends AbstractTextField {
 	}
 	
 	protected final void editText(char c){
+
 		/* Some characters perform special actions */
 		switch(c){
 		/*currently DEL/BS handled the same. See if I need to change it */
@@ -140,10 +145,10 @@ public class MultiLineTextField extends AbstractTextField {
 		default:
 			if(isPrintable(c)) insertChar(c); 
 		}
+		
 		drawContent();
 		notifyTextChanged();
 		notifyPositionChanged();
-		notifyDisplayChange();
 		
 	}
 	
@@ -165,8 +170,10 @@ public class MultiLineTextField extends AbstractTextField {
 		StringBuilder strBld = new StringBuilder();
 		Enumeration<StringBuilder> lines = textContent.elements();
 
-		while(lines.hasMoreElements())
-			strBld.append(lines.nextElement()+"\n");
+		while(lines.hasMoreElements()){
+			strBld.append(lines.nextElement().toString());
+			strBld.append('\n');
+		}
 		
 		return strBld.toString();
 	}
@@ -235,7 +242,6 @@ public class MultiLineTextField extends AbstractTextField {
 		}
 		drawCursor();
 		notifyPositionChanged();
-		notifyDisplayChange();
 	}
 	
 	protected final void cursorTo(Position d){
@@ -244,7 +250,17 @@ public class MultiLineTextField extends AbstractTextField {
 		cursorCol  = d.getCol();
 		drawCursor();
 		notifyPositionChanged();
-		notifyDisplayChange();
+		
+	}
+	
+	private int getLineWidth(){
+		int width=0;
+		for(StringBuilder b: textContent)
+			if(b.length()>width) width = b.length();
+		return width;
+	}
+	public int getLineCount(){
+		return textContent.size();
 	}
 	
 	public void setReadOnly(boolean ro){
@@ -253,6 +269,8 @@ public class MultiLineTextField extends AbstractTextField {
 	
 	@Override
 	public void processEvent(UiEvent e) {
+		super.processEvent(e);
+
 		if(e instanceof UiInputEvent){
 			UiInputEvent uie = (UiInputEvent) e;
 			if(uie.getOriginalEvent() instanceof CharacterCodeEvent && !readOnly){
@@ -270,7 +288,6 @@ public class MultiLineTextField extends AbstractTextField {
 				}
 			}
 		}
-		super.processEvent(e);
 	}
 	
 }

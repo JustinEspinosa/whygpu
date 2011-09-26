@@ -3,9 +3,11 @@ package fun.useless.curses.ui.components;
 
 import java.util.Vector;
 
+import fun.useless.curses.Curses;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorPair;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.event.ActionEvent;
 import fun.useless.curses.ui.event.ActionListener;
@@ -23,10 +25,10 @@ public class MenuItem extends Component {
 	private int targetL;
 	private int targetC;
 	
-	public MenuItem(String txt) {
-		super(0, 0, 1, txt.length()+1);
+	public MenuItem(String txt,Curses cs) {
+		super(cs,new Position(0, 0), new Dimension(1, txt.length()+1));
 		text = txt;
-		setColor(ColorDefaults.getDefaultColor(ColorType.MENU));
+		setColor(ColorDefaults.getDefaultColor(ColorType.MENU,curses()));
 	}
 	
 	public void setTargetPosition(int line,int col){
@@ -104,12 +106,12 @@ public class MenuItem extends Component {
 	}
 	@Override
 	public void gotFocus() {
-		setColor(ColorDefaults.getDefaultColor(ColorType.SELECTED));
+		setColor(ColorDefaults.getDefaultColor(ColorType.SELECTED,curses()));
 		super.gotFocus();
 	}
 	@Override
 	public void lostFocus() {
-		setColor(ColorDefaults.getDefaultColor(ColorType.MENU));
+		setColor(ColorDefaults.getDefaultColor(ColorType.MENU,curses()));
 		closeTarget();
 		super.lostFocus();
 	}

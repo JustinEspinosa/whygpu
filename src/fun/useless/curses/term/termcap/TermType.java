@@ -10,21 +10,27 @@ public class TermType {
 	private String name="";
 	
 	public TermType(){
-		
 	}
+	
 	public void setName(String n){
+		//System.out.println("I am "+n);
 		name=n;
 	}
+	
 	public void setTC(TermType tt){
+		//System.out.println(this+" depends on "+tt);
 		tc.add(tt);
 	}
+	
 	public void set(String k,Object v){
 		parameters.put(k, v);
 	}
+	
 	@Override
 	public String toString(){
 		return name;
 	}
+	
 	private Object getFromTC(String k){
 		for (TermType tt : tc) {
 			Object o =tt.get(k);

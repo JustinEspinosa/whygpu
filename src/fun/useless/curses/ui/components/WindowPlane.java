@@ -1,10 +1,14 @@
 package fun.useless.curses.ui.components;
 
+import java.util.Enumeration;
+
+import fun.useless.curses.Curses;
 import fun.useless.curses.application.Application;
-import fun.useless.curses.ui.ColorChar;
+import fun.useless.curses.lang.ColorChar;
 import fun.useless.curses.ui.ColorDefaults;
 import fun.useless.curses.ui.ColorPair;
 import fun.useless.curses.ui.ColorType;
+import fun.useless.curses.ui.Dimension;
 import fun.useless.curses.ui.Position;
 import fun.useless.curses.ui.Rectangle;
 import fun.useless.curses.ui.WindowManager;
@@ -27,13 +31,12 @@ public class WindowPlane extends RootPlane<Window> {
 	private int cascwinLine = 0;
 	private Application currentApplication;
 	
-	public WindowPlane(WindowManager m, int sLine, int sCol,
-			int lines, int cols) {
-		super(m, "root", sLine, sCol, lines, cols);
+	public WindowPlane(WindowManager m, Curses cs,Position p,Dimension d) {
+		super(m, "root", cs,p,d);
 		
 		setEventReceiver(getWindowManager());
 		
-		setColor(ColorDefaults.getDefaultColor(ColorType.DESKTOP));
+		setColor(ColorDefaults.getDefaultColor(ColorType.DESKTOP,curses()));
 		clear();
 		printStatusNoUpdate();
 	}
@@ -49,9 +52,13 @@ public class WindowPlane extends RootPlane<Window> {
 	}
 	
 	private void startMode(int m){
-		mode = m;
-		if(currentWindow!=null) currentWindow.lostFocus();
-		printStatus();
+		if(mode==m){
+			endMode();
+		}else{
+			mode = m;
+			if(currentWindow!=null) currentWindow.lostFocus();
+			printStatus();
+		}
 	
 	}
 	
@@ -62,15 +69,15 @@ public class WindowPlane extends RootPlane<Window> {
 	}
 	private Rectangle printStatusNoUpdate(){
 		ColorPair cp = getColor();
-		setColor(ColorDefaults.getDefaultColor(ColorType.MENU));
+		setColor(ColorDefaults.getDefaultColor(ColorType.MENU,curses()));
 		String mv = (mode == MOVE  ) ? "@" : " ";
 		String rs = (mode == RESIZE) ? "@" : " ";
 		String sc = (scrollLock()  ) ? "@" : " ";
 		String name = formatName("");
 		if(currentApplication!=null)
-			name = formatName(currentApplication.getName());
+			name = formatName(currentApplication.getName(true));
 		
-		String status = name+" |Press ESC-m for menu. |Mv "+mv+" |Rs "+rs+" |Sc "+sc+" |";
+		String status = name+" |Press ESC-m for menu.  |Mv "+mv+" |Rs "+rs+" |Sc "+sc+" |";
 		printAt(getInnerBottom(), 0, status);
 		setColor(cp);
 		return new Rectangle(getInnerBottom(),0,1,status.length());
@@ -91,10 +98,10 @@ public class WindowPlane extends RootPlane<Window> {
 	}
 	
 	private String formatName(String name){
-		if(name.length()>=12)
-			return name.substring(0,12);
+		if(name.length()>=35)
+			return name.substring(0,35);
 		else
-			return name.concat(generateSpaces(12-name.length()));
+			return name.concat(generateSpaces(35 - name.length()));
 	}
 	/* CHILD WINDOWS MANAGINGS  yeah i know ;) */
 	
@@ -142,6 +149,10 @@ public class WindowPlane extends RootPlane<Window> {
 	}
 	
 	public void informOfCurrentlyActiveApplication(Application app){
+		if(currentApplication!=app && currentWindow!=null){
+			currentWindow.lostFocus();
+		}
+		
 		currentApplication = app;
 	}
 	
@@ -190,11 +201,11 @@ public class WindowPlane extends RootPlane<Window> {
 			currentWindow.setPosition( currentWindow.getPosition().vertical(d) );
 	}
 	private void windowSizeHrz(int d){
-		if(currentWindow!=null)
+		if(currentWindow!=null && currentWindow.isResizeable())
 			currentWindow.setSize(currentWindow.getSize().horizontal(d) );
 	}
 	private void windowSizeVert(int d){
-		if(currentWindow!=null)
+		if(currentWindow!=null && currentWindow.isResizeable())
 			currentWindow.setSize(currentWindow.getSize().vertical(d));
 	}
 	
@@ -276,5 +287,24 @@ public class WindowPlane extends RootPlane<Window> {
 				if(k== TermKeyEvent.SCROLL) printStatus();
 			}
 		}
+	}
+	
+	public Window getTopMostWindow(Application owner){		
+		Enumeration<Window> children = rchildren();
+		
+		while(children.hasMoreElements()){
+			Window child = children.nextElement();
+			if(child.getOwner()==owner)
+				return child;
+		}
+		return null;
+	}
+	
+	public void refresh(){
+		notifyDisplayChange();
+	}
+	
+	public Window getCurrentWindow(){
+		return currentWindow;
 	}
 }
