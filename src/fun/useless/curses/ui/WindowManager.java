@@ -194,7 +194,8 @@ public class WindowManager implements EventReceiver {
 	private TerminalInputEventer eventer     = new TerminalInputEventer();
 	private EscapeDetector       detector    = new EscapeDetector();
 	private boolean              running     = false;
-	private FactoryLocator       appList = new FactoryLocator();
+	private FactoryLocator       appList     = new FactoryLocator();
+	private Object               readLock    = new Object();
 	
 	private UiEventProcessorFactory processorFactory = new UiEventProcessorFactory() {
 		public UiEventProcessor createProcessor(UiEvent e, RootPlane<?> plane) {
@@ -285,28 +286,12 @@ public class WindowManager implements EventReceiver {
 	
 	private void suspendRead(){
 		crs.getTerminal().wakeup();
-		
-		synchronized(this){
-			try{
-				wait();
-			}catch(InterruptedException ie){
-				ie.printStackTrace();
-			}
-		}
 	}
+	
 	private void suspendRedraw(){
 		rdThread.wakeup();
-		
-		synchronized(this){
-			
-			try{
-				wait();
-			}catch(InterruptedException ie){
-				ie.printStackTrace();
-			}
-			
-		}
 	}
+	
 	public void suspend(){
 		
 		synchronized(this){
@@ -317,6 +302,11 @@ public class WindowManager implements EventReceiver {
 		suspendRead();
 		
 		try {
+			Thread.sleep(200);
+		} catch (InterruptedException e){
+		}
+		
+		try {
 			crs.rmcup();
 			crs.clear();
 		} catch (IOException e) {
@@ -325,8 +315,8 @@ public class WindowManager implements EventReceiver {
 	}
 	
 	private void resumeRead(){
-		synchronized(this){
-			notify();
+		synchronized(readLock){
+			readLock.notify();
 		}
 	}
 	
@@ -552,18 +542,16 @@ public class WindowManager implements EventReceiver {
 					
 					//exp.printStackTrace();
 					
-					synchronized(this){
-						notify();
-					
+					synchronized(readLock){					
 						if(suspended){
 							try{
-								wait();
+								readLock.wait();
 							}catch(InterruptedException ie){
 								ie.printStackTrace();
 							}
 						}
-						
 					}
+					
 				}
 			}
 		}catch(ClosedChannelException cee){
