@@ -2,8 +2,9 @@ package shittytests;
 
 import java.io.IOException;
 
-import fun.useless.curses.term.Terminal;
-import fun.useless.curses.term.termcap.TermCap;
+import textmode.curses.term.Terminal;
+import textmode.curses.term.termcap.TermCap;
+
 
 
 

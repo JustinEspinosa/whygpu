@@ -1,7 +1,7 @@
 package shittytests;
 
-import fun.useless.xfer.util.CRC;
-import fun.useless.xfer.util.CRC.Type;
+import textmode.xfer.util.CRC;
+import textmode.xfer.util.CRC.Type;
 
 public class TestCrc {
 	

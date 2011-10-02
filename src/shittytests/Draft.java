@@ -1,7 +1,7 @@
 package shittytests;
 
-import fun.useless.xfer.util.Arrays;
-import fun.useless.xfer.util.Arrays.Endianness;
+import textmode.xfer.util.Arrays;
+import textmode.xfer.util.Arrays.Endianness;
 
 public class Draft {
 

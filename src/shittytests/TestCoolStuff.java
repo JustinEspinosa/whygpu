@@ -9,12 +9,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.TreeMap;
 
-import fun.useless.curses.Curses;
-import fun.useless.curses.net.GeneralSocketIO;
-import fun.useless.curses.term.Terminal;
-import fun.useless.curses.term.io.TelnetIO;
-import fun.useless.curses.term.termcap.TermCap;
-import fun.useless.curses.ui.WindowManager;
+import textmode.curses.Curses;
+import textmode.curses.net.GeneralSocketIO;
+import textmode.curses.term.Terminal;
+import textmode.curses.term.io.TelnetIO;
+import textmode.curses.term.termcap.TermCap;
+import textmode.curses.ui.WindowManager;
+
 
 //import jcurses.ui.Label;
 
