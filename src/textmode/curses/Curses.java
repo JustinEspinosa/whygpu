@@ -24,7 +24,7 @@ import textmode.curses.ui.util.CharacterScreenBuffer;
 
 
 
-public class Curses {
+public class Curses{
 	
 	private Terminal term;
 	private ConsoleInputStream is;
@@ -139,20 +139,22 @@ public class Curses {
 	}
 	
 	public void showWindow(Component w) throws IOException{
-		drawColorCharArray(w.getContent(),w.getPosition().getLine(),w.getPosition().getCol());
+		drawColorCharArray(w.getContent(),w.getPosition());
 	}
 	
 	//fill a text rectangle of defined characters + fore|back color as fast as possible
-	public void drawColorCharArray(ColorChar[][] contents, int sLine,int sCol) throws IOException{
+	public synchronized void drawColorCharArray(ColorChar[][] contents, Position from) throws IOException{
 		ColorStringBuilder bld = new ColorStringBuilder();
 
 		for(int line=0;line<contents.length;line++){
 			
 			for(int col=0;col<contents[line].length;col++){
-				bld.append(contents[line][col]);
+				if(contents[line][col]!=null)
+					bld.append(contents[line][col]);
 			}
 			
-			doubleBufferPrintAt(bld.toColorString(),line + sLine,sCol);
+			if(bld.length()>0)
+				doubleBufferPrintAt(bld.toColorString(),line + from.getLine(), from.getCol());
 			//reset
 			bld = new ColorStringBuilder();
 		}
@@ -224,11 +226,11 @@ public class Curses {
 		}
 	}
 	
-	public void invalidateDoubleBuffering(){
+	public synchronized void invalidateDoubleBuffering(){
 		buffer.invalidate();
 	}
 	
-	public void redrawAllFromDoubleBuffer() throws IOException{
+	public synchronized void redrawAllFromDoubleBuffer() throws IOException{
 		
 		ColorPair previous = new ColorPair(BaseColor.Undefined, BaseColor.Undefined);
 		Iterator<Position> i = buffer.getSize().iterator();
@@ -239,11 +241,11 @@ public class Curses {
 				
 	}
 	
-	public void doubleBufferPrintAt(ColorString text,int line,int col) throws IOException{
+	public synchronized void doubleBufferPrintAt(ColorString text,int line,int col) throws IOException{
 		
 		ColorPair lastColor   = new ColorPair(BaseColor.Undefined, BaseColor.Undefined);
 		boolean   changeColor = false;
-		
+				
 		for(int i=0;i<text.length();i++){
 			ColorChar cchar = text.charAt(i);
 			
@@ -252,6 +254,7 @@ public class Curses {
 				
 				Position p = new Position(line,col);
 				if(buffer.set(p, cchar)){
+					
 					if(changeColor){
 						applyColorPair(cchar.getColors());
 						lastColor = cchar.getColors();
@@ -265,10 +268,21 @@ public class Curses {
 		
 	}
 	
+	public void wantsResizedNotification(TerminalResizedReceiver rcv){
+		term.addResizedReceiver(rcv);
+	}
+	
 	public void printAt(String text,int l,int c) throws IOException{
 		cursorAt(l,c);
 		byte[] chrs = text.getBytes();
 		for(int i=0;i<chrs.length;i++)
 			writeChar((char)chrs[i]);
 	}
+
+	public synchronized void resizeBuffer(int cols, int lines) {
+		cursLine = -1;
+		cursCol  = -1;
+		buffer = new CharacterScreenBuffer(new Dimension(lines, cols));
+	}
+
 }

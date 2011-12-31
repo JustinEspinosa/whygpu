@@ -29,15 +29,15 @@ public class ChannelInputStream extends InputStream {
 	@Override
 	public int read() throws IOException {
 		ByteBuffer b = ByteBuffer.allocate(1);
-		
-		if(channel.read(b)<1){
+		int num = 0;
+		while((num=channel.read(b))<1){
 			nwLock.readWait();
-			channel.read(b);
+			if(num<0)
+				return num;
 		}
 				
 		b.flip();
-		
-		return b.get();
+		return (0xff&(int)b.get());
 			
 	}
 

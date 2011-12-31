@@ -1,18 +1,35 @@
 package textmode.xfer.util;
 
-import java.util.Arrays;
-
 import textmode.xfer.util.Arrays.Endianness;
 
 
 public class HexBuffer implements Buffer{
 	
 	private static final byte[] hx={'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+	
+	public static byte[] binToHex(byte[] bin){
+		byte[] hex = new byte[bin.length*2];
+		for(int i=0;i<bin.length;i++)
+			System.arraycopy(toHex(bin[i]), 0, hex, i*2, 2);
+		
+		return hex;
+	}
+	public static byte[] hexToBin(byte[] hex){
+		byte[] bin = new byte[hex.length/2];
+		for(int i=0;i<bin.length;i++){
+			byte[] bn= new byte[2];
+			System.arraycopy(hex, i*2, bn, 0, 2);
+			bin[i] = toByte(bn);
+		}
+		
+		return bin;
+	}
+	
 	private static byte toByte(byte[] array){
 		int d;
 		
-		d = Arrays.binarySearch(hx, array[0]) * 16;
-		d+= Arrays.binarySearch(hx, array[1]);
+		d = java.util.Arrays.binarySearch(hx, array[0]) * 16;
+		d+= java.util.Arrays.binarySearch(hx, array[1]);
 		
 		return (byte)d;
 	}

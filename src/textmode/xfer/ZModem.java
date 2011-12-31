@@ -1,11 +1,11 @@
 package textmode.xfer;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
+import textmode.util.FileAdapter;
 import textmode.xfer.zm.util.ZModemReceive;
 import textmode.xfer.zm.util.ZModemSend;
 
@@ -21,7 +21,7 @@ public class ZModem {
 		
 	}
 	
-	public void receive(File destDir) throws IOException{
+	public void receive(FileAdapter destDir) throws IOException{
 		netOs.write("Send a file now.\n".getBytes());
 		netOs.flush();
 		
@@ -41,7 +41,7 @@ public class ZModem {
 		}
 	}
 	
-	public void send(Map<String,File> lst) throws IOException{
+	public void send(Map<String,FileAdapter> lst) throws IOException{
 		netOs.write("Start the client-side download now.\n".getBytes());
 		netOs.flush();
 		

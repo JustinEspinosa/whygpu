@@ -15,5 +15,17 @@ public enum ColorDepth{
 		
 		return ColorDepth.COL256;		
 	}
+	
+	public static Color colorFromRGB(RGB r,ColorDepth depth){
+		switch(depth){
+		case COL8:
+			return ColorTable.AnsiColor8.finder().find(ColorTable.AnsiColor8.findNearestIndex(r).index());
+		case COL16:
+			return ColorTable.AnsiColor16.finder().find(ColorTable.AnsiColor16.findNearestIndex(r).index());
+		case COL256:
+			return new XTermColor256(r);
+		}
+		return null;
+	}
 
 }

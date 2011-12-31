@@ -24,6 +24,7 @@ public class NoWaitIOLock extends Thread {
 	
 	public NoWaitIOLock(SelectableChannel chan) throws IOException {
 		super("IOLock-"+(++ThId));
+		setDaemon(true);
 		channel = chan;
 		selector = channel.provider().openSelector();
 		channel.configureBlocking(false);
@@ -49,7 +50,6 @@ public class NoWaitIOLock extends Thread {
 			try {
 				readLock.wait();
 			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
 		}
 		
@@ -70,19 +70,19 @@ public class NoWaitIOLock extends Thread {
 	public void writeWait(){
 		SelectionKey key = null;
 		try {
-			 key = channel.register(selector, SelectionKey.OP_WRITE);
+			key = channel.register(selector, SelectionKey.OP_WRITE|SelectionKey.OP_READ);
 		} catch (ClosedChannelException e1) {
+			throw new RuntimeException(e1);
 		}
 		
 		if(key!=null){
 			synchronized(writeLock){
 				try {
-				writeLock.wait();
+					writeLock.wait();
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
-			key.cancel();
 		}
 	}
 	
@@ -137,6 +137,7 @@ public class NoWaitIOLock extends Thread {
 						
 						if(key.isWritable()) synchronized(writeLock){
 							writeLock.notifyAll();
+							channel.register(selector, SelectionKey.OP_READ);
 						}
 						
 					}

@@ -12,5 +12,11 @@ public class ByteVector extends Vector<Byte>{
 		}
 		return bldr.toString();
 	}
+	public byte[] toArray(int offset, int length){
+		byte[] ret = new byte[length];
+		for(int i=0;i<length;++i)
+			ret[i] = get(offset+i).byteValue();
+		return ret;
+	}
 
 }

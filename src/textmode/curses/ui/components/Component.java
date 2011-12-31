@@ -62,20 +62,25 @@ public abstract class Component {
 	}
 	
 	/**
-	 * -1 means unspecified
-	 * @param lines
-	 * @param cols
+	 * 
+	 * @param d
 	 */
-	protected final void setMinSize(Dimension d){
+	public void setMinSize(Dimension d){
 		minSize = d.copy();
 	}
 	/**
-	 * -1 means unspecified
-	 * @param lines
-	 * @param cols
+	 * 
+	 * @param d
 	 */
-	protected final void setMaxSize(Dimension d){
+	public void setMaxSize(Dimension d){
 		maxSize = d.copy();
+	}
+	
+	public Dimension getMaxSize() {
+		return maxSize.copy();
+	}
+	public Dimension getMinSize() {
+		return minSize.copy();
 	}
 	
 	protected final void notifySizeChanged(){
@@ -104,17 +109,19 @@ public abstract class Component {
 		sendEvent(new RedrawEvent(this, r));
 	}
 	protected final void notifyDisplayChange(){
-		notifyDisplayChange(new Rectangle(new Position(0,0),size));
+		notifyDisplayChange(new Rectangle(Position.ORIGIN,size));
 	}
 	
-	protected final void createArray(ColorChar[][] arr){
+	protected void createArray(ColorChar[][] arr){
 		for(int i=0;i<arr.length;i++) for(int j=0;j<arr[i].length;j++)
 			arr[i][j]=new ColorChar(' ',color);	
 	}
+	
 	protected void init(){
 		setColor(colors().get(getClass()));
 		createArray(content);
 	}
+	
 	private synchronized void resizeContent(){
 		ColorChar[][] newContent = new ColorChar[size.getLines()][size.getCols()];
 		createArray(newContent);
@@ -131,20 +138,31 @@ public abstract class Component {
 	}
 	
 	protected void setChar(Position p,char c){
-		setChar(p.getLine(),p.getCol(),c,false);
+		setChar(p,c,false);
 	}
 	
-	protected synchronized void setChar(int line,int col,char c, boolean allowborder){
-		
+	protected void setChar(Position p,ColorChar c){
+		setChar(p,c,false);
+	}
+	
+	protected synchronized void setChar(Position p,ColorChar c, boolean allowborder){
+		int line = p.getLine(), col = p.getCol();
 		boolean withBorder = (line >= getInnerTop() && line <= getInnerBottom() && 
-								col >= getInnerLeft() && col <= getInnerRight() );
+				col >= getInnerLeft() && col <= getInnerRight() );
 		boolean withoutBorder = ( line >= 0 && line < size.getLines() && col >= 0 && col <= size.getCols());
 		
 		
-		if( (withBorder && allowborder) || withoutBorder ){
-			content[line][col].setChr(c);
-			content[line][col].setColor(color);
-		}
+		if( (withBorder && allowborder) || withoutBorder )
+			if(line<content.length)
+				if(col<content[line].length)
+					content[line][col] = c;
+
+	}
+	protected synchronized void setChar(Position p,char c, boolean allowborder){
+		setChar(p,new ColorChar(c, getColor()),allowborder);
+	}
+	protected synchronized void setChar(int line,int col,char c, boolean allowborder){
+		setChar(new Position(line,col),new ColorChar(c, getColor()),allowborder);
 	}
 	
 	protected void unBorder(){
@@ -179,11 +197,6 @@ public abstract class Component {
 	
 	public void clear(){
 		
-		/*
-		for(int line=0;line<size.getLines();line++) for(int col=0;col<size.getCols();col++)
-			setChar(line,col,' ');
-			*/
-		
 		Iterator<Position> i = getSize().iterator();
 		
 		while(i.hasNext())
@@ -193,11 +206,18 @@ public abstract class Component {
 			border();
 	}
 	
-	public synchronized ColorChar getCharAt(int line,int col){
-
-		if(line >= 0 && line < size.getLines() && col >= 0 && col < size.getCols())
-			return content[line][col];
-		
+	/**
+	 * Position is relative to the components origin (0:0 == top,left)
+	 * @param p
+	 * @return
+	 */
+	public synchronized ColorChar getCharAt(Position p){
+		try{
+		if(size.includes(p))
+			return p.getAt(content);
+		}catch(Exception e){
+			e.printStackTrace();
+		}
 		return null;
 	}
 	
@@ -213,13 +233,19 @@ public abstract class Component {
 	protected  int getInnerTop(){
 		return (hasBorder?1:0);
 	}
-	public synchronized ColorChar[][] getPartialContent(int sLine,int sCol,int lines,int cols){
-		if(lines<0 || cols<0 ) return new ColorChar[0][0];
+	public synchronized ColorChar[][] getPartialContent(Position from, Dimension size){
 		
-		ColorChar[][] r = new ColorChar[lines][cols];
+		ColorChar[][] r = size.newArrayOf(ColorChar.class);
+		Iterator<Position> i = size.iterator(from);
 		
-		for( int line = 0 ; line < lines; line++) for (int col = 0 ; col < cols ; col++)
-				r[line][col] = getCharAt(line + sLine, col + sCol);
+		while(i.hasNext()){
+			Position p = i.next();
+			try{
+				p.relativeTo(from).setAt(r,  getCharAt(p) );
+			}catch(ArrayIndexOutOfBoundsException e){
+				e.printStackTrace();
+			}
+		}
 		
 		return r;
 	}
@@ -229,7 +255,7 @@ public abstract class Component {
 	}
 	
 	public ColorChar[][] getContent(){
-		return getPartialContent(0,0,size.getLines(),size.getCols());
+		return getPartialContent(Position.ORIGIN,size);
 	}
 	
 	public Position getPosition(){
@@ -268,13 +294,16 @@ public abstract class Component {
 	public final void setPosition(Position p){
 
 		/* Area to update */
-		Position origin = new Position(Math.min(p.getLine(), position.getLine()),Math.min(p.getCol(), position.getCol()));
-		Position end    = new Position(Math.max(p.getLine()+size.getLines(), position.getLine()+size.getLines()),Math.max(p.getCol()+size.getCols(), position.getCol()+size.getCols()));
+		Position origin = new Position(Math.min(p.getLine(), position.getLine()),
+									   Math.min(p.getCol(),  position.getCol()));
+		
+		Position end    = new Position(Math.max(p.getLine()+size.getLines(), position.getLine()+size.getLines()),
+									   Math.max(p.getCol() +size.getCols(),  position.getCol() +size.getCols()));
 
 		position = p.copy();
 				
 		/* Rectangle relative to current position */
-		notifyDisplayChange(new Rectangle(origin.vertical(-position.getLine()).horizontal(-position.getCol()),end.vertical(-position.getLine()).horizontal(-position.getCol())));
+		notifyDisplayChange(new Rectangle(origin.relativeTo(position), end.relativeTo(position)) );
 	}
 	
 	/**
@@ -303,12 +332,13 @@ public abstract class Component {
 		
 		/*compute what's to be redrawn*/
 		int lines = Math.max(size.getLines(), size2.getLines() );
-		int cols = Math.max(size.getCols(), size2.getCols() );
+		int cols  = Math.max(size.getCols(), size2.getCols() );
 		
 		size = size2.copy();
 		
 		resizeContent();
 		userResized();
+		
 		if(hasBorder) border();
 		notifySizeChanged();
 		notifyDisplayChange(new Rectangle(0,0,lines,cols));

@@ -74,10 +74,10 @@ public abstract class PropertyList implements Comparable<PropertyList>{
 		return properties(SearchType.ALL);
 	}
 	public String[] persistantValues(){
-		return properties(SearchType.PERSISTANTS);
+		return properties(SearchType.PERSISTANTS_NOKEYS);
 	}
 	public String[] persistantKeys(){
-		return properties(SearchType.PERSISTANTS);
+		return properties(SearchType.KEYS_PERSISTANT);
 	}
 	public String[] persistantProperties(){
 		return properties(SearchType.PERSISTANTS);

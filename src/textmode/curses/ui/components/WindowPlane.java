@@ -159,12 +159,13 @@ public class WindowPlane extends RootPlane<Window> {
 		Window w = getAtIndex(index);
 		
 		index += direction;
-		while(w.getOwner() != currentApplication && index!=(direction<0?0:getChildCount()-1)){
+		while(w!=null && (w.getOwner() != currentApplication && 
+							index!=(direction<0?0:getChildCount()-1))){
 			w = getAtIndex(index);
 			index += direction;
 		}
 		
-		if(w.getOwner()==currentApplication)
+		if( w!=null && w.getOwner()==currentApplication)
 			return w;
 		else
 			return currentWindow;
@@ -220,13 +221,13 @@ public class WindowPlane extends RootPlane<Window> {
 	}
 	
 	@Override
-	public ColorChar getCharAt(int line,int col){
+	public ColorChar getCharAt(Position p){
 		//The menu plane must be on top of us.
-		ColorChar occ = getWindowManager().getTopCharAt(line, col);
+		ColorChar occ = getWindowManager().getTopCharAt(p);
 		if(occ!=null) 
 			return occ;
 		else
-			return super.getCharAt(line, col);
+			return super.getCharAt(p);
 	}
 	
 	@Override
@@ -285,6 +286,7 @@ public class WindowPlane extends RootPlane<Window> {
 				if(k== TermKeyEvent.SCROLL) printStatus();
 			}
 		}
+;
 	}
 	
 	public Window getTopMostWindow(Application owner){		

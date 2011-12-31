@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
@@ -26,29 +27,79 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	
 	
 	private class TLSOutputStream extends OutputStream{
-
-		private void implFlush() throws IOException{
-			outAppData.flip();
-			encryptAndWrite(outAppData);
-			outAppData.clear();
-		}
 		
-		@Override
-		public void write(int b) throws IOException {
+		private class Flusher extends Thread{
+			public void run() {
+				
+				try{
+					sleep(70);
+				}catch(InterruptedException e){					
+				}
+				
+				
+				try{	
+					implFlush2();
+				}catch (IOException e) {
+					logger.log(Level.SEVERE,"could not flush",e);
+				}catch (Exception e) {
+					logger.log(Level.SEVERE,"Uncaught on flush",e);
+				}
+
+			};
+		}
+
+		private static final int MinFree = 512;
+		
+		private Thread delay = null;
+
+		private void implFlush2() throws IOException{
 			synchronized(outAppData){
-				outAppData.put((byte)b);
-				if(!outAppData.hasRemaining())
-					implFlush();
+				outAppData.flip();
+				encryptAndWrite(outAppData);
+				outAppData.clear();
 			}
 		}
 		
-		@Override
-		public void flush() throws IOException {
-			try{
-				synchronized(outAppData){
-					implFlush();
+		private void implFlush() {
+			
+			if(delay==null){
+				delay = new Flusher();
+				delay.start();
+			}else{
+				synchronized(delay){
+					if(!delay.isAlive()){
+						delay = new Flusher();
+						delay.start();
+					}
 				}
-			}catch(SSLException e){}
+			}
+			
+			if(outAppData.position()>=outAppData.capacity()-MinFree){
+				synchronized(delay){
+					delay.interrupt();
+					try {
+						delay.join();
+					} catch (InterruptedException e) {}
+				}
+				delay=null;
+			}
+			
+		}
+		@Override
+		public synchronized void write(int b) throws IOException {
+			boolean forceFlush = false;
+			
+			synchronized(outAppData){
+				outAppData.put((byte)b);
+				forceFlush = (outAppData.position()>=outAppData.capacity()-MinFree);
+			}
+			
+			if(forceFlush) implFlush();
+		}
+		
+		@Override
+		public synchronized void flush() throws IOException {
+			implFlush();
 		}
 	}
 	
@@ -66,7 +117,9 @@ public class TLSGeneralSocketIO  extends SocketIO{
 					}
 					return ((int)inAppData.get()&0xff);
 				}
-			}catch(SSLException e){}
+			}catch(SSLException e){
+				logger.log(Level.SEVERE,"TLS Error",e);
+			}
 			return -1;
 		}
 	}
@@ -200,22 +253,18 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		outNetData.clear();
 		
 		SSLEngineResult status = sslEngine.wrap(out, outNetData);
-		
-		if(status.getStatus() == SSLEngineResult.Status.BUFFER_UNDERFLOW){
-			System.out.println("ok");
-		}
+
 		
 		if(canLog())
-			logger.finer("Status after write: "+status);
+			logger.fine("Status after write: "+status);
 		
 		outNetData.flip();
 		
-		int toWrite = outNetData.remaining();
-		int written = 0;
+		int written = outNetData.remaining();
 		
-		while(written<toWrite){
-			written += getSocket().write(outNetData);
-			if( written < toWrite )
+		while(outNetData.hasRemaining()){
+			getSocket().write(outNetData);
+			if( outNetData.hasRemaining() )
 				nwLock.writeWait();
 		}
 		
@@ -245,7 +294,7 @@ public class TLSGeneralSocketIO  extends SocketIO{
 			builder.append('\n');
 		}
 		
-		logger.finer(builder.toString());
+		logger.fine(builder.toString());
 		
 	}
 	
@@ -295,8 +344,9 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		return status;
 	}
 	
-	private boolean continueReading(SSLEngineResult result){
-		 return ( result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING && 
+	private boolean continueReading(SSLEngineResult result) throws IOException{
+		doHandshake();
+		return ( result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING && 
 		          result.bytesProduced() == 0);
 	}
 	
@@ -307,7 +357,12 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		inAppData.clear();
 		
 		do{
-			result = doReadAndDecrypt();
+			try{
+				result = doReadAndDecrypt();
+			}catch(SSLException e){
+				logger.log(Level.SEVERE, "SSL error while reading:", e);
+				throw e;
+			}
 
 			// Sometimes, TLS Protocol stuff are done and no data is produced: repeat
 			if(result.getStatus() == SSLEngineResult.Status.CLOSED)

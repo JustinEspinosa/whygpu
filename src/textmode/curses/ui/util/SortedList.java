@@ -9,6 +9,13 @@ public class SortedList<T> extends ArrayList<T> {
 	private static final long serialVersionUID = -948459713994507899L;
 	private Comparator<T> comparator;
 	
+	protected SortedList(){
+		comparator = null;
+	}
+	protected void setComparator(Comparator<T> comp){
+		comparator = comp;
+	}
+	
 	public SortedList(Comparator<T> comp) {
 		comparator = comp;
 	}

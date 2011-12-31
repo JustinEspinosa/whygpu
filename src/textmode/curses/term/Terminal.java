@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.InterruptibleChannel;
+import java.util.ArrayList;
 
+import textmode.curses.TerminalResizedReceiver;
 import textmode.curses.net.SocketIO;
 import textmode.curses.term.io.NoWaitIOLock;
 import textmode.curses.term.termcap.TermType;
@@ -31,12 +33,14 @@ public class Terminal {
 	private InputStream  in;
 	private OutputStream out;
 	private InterruptibleChannel channel = null;
+	@SuppressWarnings("unused")
 	private int PC = 0;
 	private boolean ansiColors = false;
 	private int numColors = 1;
 	
 	private char[] wrbuffer = new char[1024]; 
 	private int    wroffset = 0;
+	private ArrayList<TerminalResizedReceiver> receivers = new ArrayList<TerminalResizedReceiver>();
 	
 	public Terminal(TermType t, SocketIO sock) throws IOException{
 		type = t;
@@ -59,18 +63,29 @@ public class Terminal {
 		if(v!=null)
 			PC = escapeSequence(new StringWithPos(v));
 	}
-	protected final void setLines(int v){
+	
+	public final void setLines(int v){
 		lines = v;
 	}
-	protected final void setCols(int v){
+	public final void setCols(int v){
 		cols = v;
 	}
+	
 	protected final void setNumColors(int v){
 		numColors = v;
 	}
 	
 	protected final TermType type(){
 		return type;
+	}
+	
+	public void resized(){
+		for(TerminalResizedReceiver rcv: receivers)
+			rcv.terminalResized(cols, lines);
+	}
+	
+	public void addResizedReceiver(TerminalResizedReceiver rcv){
+		receivers.add(rcv);
 	}
 	
 	public Terminal(TermType t){
@@ -178,15 +193,16 @@ public class Terminal {
 	/* must be nano sec*/
 	private void paddOut(long time) throws IOException
 	{
+		//Padding not used on TCP/IP, disabled because it could delay things
 		/* TODO: take the stream type into account: only pad on serial
 		 * speed under the value in the corresponding capacity. do not pad over
 		 * IP or locally.
-		 */
+		 *
 		long start = System.nanoTime();
 		while( (System.nanoTime()-start)<time )
 			out.write(PC);
 		
-		out.flush();
+		out.flush();*/
 	}
 	
 	

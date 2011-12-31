@@ -26,12 +26,12 @@ public class ChannelOutputStream extends OutputStream {
 	private void writeBuff() throws IOException {
 		buff.flip();
 		
-		int toWrite = buff.limit();
-		int written = 0;
+		//int toWrite = buff.remaining();
+		//int written = 0;
 		
-		while( written < toWrite ){
-			written += channel.write(buff);
-			if( written < toWrite )
+		while( buff.hasRemaining() ){
+			channel.write(buff);
+			if( buff.hasRemaining() )
 				nwLock.writeWait();
 		}
 			

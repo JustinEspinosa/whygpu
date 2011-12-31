@@ -4,6 +4,7 @@ import java.util.Enumeration;
 import java.util.Vector;
 
 import textmode.curses.application.help.HelpApplicationFactory;
+import textmode.curses.ui.Dimension;
 import textmode.curses.ui.components.MenuItem;
 import textmode.curses.ui.components.PopUp;
 import textmode.curses.ui.event.ActionEvent;
@@ -117,6 +118,10 @@ public class RootApplication extends Application {
 		MenuItem menu = new MenuItem(factory.getDisplayName(),curses());
 		menu.addActionListener(new ApplicationLauncher(factory));
 		addAppMenu(menu);
+	}
+	
+	public void resize(Dimension d){
+		
 	}
 
 }

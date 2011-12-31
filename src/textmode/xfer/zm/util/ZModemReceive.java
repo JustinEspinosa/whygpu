@@ -1,12 +1,11 @@
 package textmode.xfer.zm.util;
 
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import textmode.util.FileAdapter;
 import textmode.xfer.util.InvalidChecksumException;
 import textmode.xfer.zm.io.ZMPacketInputStream;
 import textmode.xfer.zm.io.ZMPacketOutputStream;
@@ -19,11 +18,11 @@ import textmode.xfer.zm.packet.Header;
 
 public class ZModemReceive {
 	
-	private File destination;
+	private FileAdapter destination;
 	private int fOffset = 0;
 	private String filename;
 	
-	private FileOutputStream fileOs = null;
+	private OutputStream fileOs = null;
 
 	private InputStream netIs;
 	private OutputStream netOs;
@@ -33,7 +32,7 @@ public class ZModemReceive {
 	}
 	
 	
-	public ZModemReceive(File destDir,InputStream netin,OutputStream netout) throws IOException{
+	public ZModemReceive(FileAdapter destDir,InputStream netin,OutputStream netout) throws IOException{
 		
 		if(!(destDir.isDirectory() && destDir.exists()) )
 			throw new FileNotFoundException(destDir.getName());
@@ -43,12 +42,12 @@ public class ZModemReceive {
 		netOs  = netout;
 	}
 	
-	private File getCurrentFile(){
-		return new File(destination,filename);
+	private FileAdapter getCurrentFile(){
+		return destination.getChild(filename);
 	}
 	
 	private int getPos(){
-		File f = getCurrentFile();
+		FileAdapter f = getCurrentFile();
 		
 		if(f.exists())
 			return (int)f.length();
@@ -58,7 +57,7 @@ public class ZModemReceive {
 	
 	private void open(int offset) throws IOException{
 		boolean append = false;
-		File f = getCurrentFile();
+		FileAdapter f = getCurrentFile();
 		
 		if(offset !=0 ){
 			if(f.exists() && f.length() == offset)
@@ -66,7 +65,7 @@ public class ZModemReceive {
 			else
 				offset = 0;
 		}
-		fileOs = new FileOutputStream(f, append);
+		fileOs = f.getOutputStream(append);
 		fOffset = offset;
 	}
 	

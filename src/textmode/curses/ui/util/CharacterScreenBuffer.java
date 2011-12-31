@@ -11,7 +11,7 @@ public class CharacterScreenBuffer {
 	private Dimension screenSize;
 	
 	public CharacterScreenBuffer(Dimension size) {
-		screenSize = size;	
+		screenSize = size.copy();	
 		screen = new ColorChar[screenSize.getLines()][screenSize.getCols()];
 	}
 	

@@ -9,6 +9,7 @@ import textmode.curses.ui.WindowManager;
 import textmode.curses.ui.event.ActionEvent;
 import textmode.curses.ui.event.FinishedActionEvent;
 import textmode.curses.ui.event.FinishedActionListener;
+import textmode.curses.ui.event.ResolutionChangeEvent;
 import textmode.curses.ui.event.TermKeyEvent;
 import textmode.curses.ui.event.UiEvent;
 import textmode.curses.ui.event.UiInputEvent;
@@ -52,6 +53,11 @@ public class MenuBar extends AbstractMenu implements FinishedActionListener{
 	@Override
 	public void processEvent(UiEvent e) {
 		
+		if(e instanceof ResolutionChangeEvent){
+			setSize(new Dimension(1,((ResolutionChangeEvent) e).size().getCols()));
+			return;
+		}
+		
 		if(getSelectedItem()!=null && getSelectedItem().getTarget()!=null && getSelectedItem().getTarget().isVisible()){
 			getSelectedItem().getTarget().processEvent(e);
 			return;
@@ -75,7 +81,7 @@ public class MenuBar extends AbstractMenu implements FinishedActionListener{
 				}
 			}
 		}
-		
+
 		super.processEvent(e);
 	}
 

@@ -103,19 +103,21 @@ public class TelnetServer {
 				String termTypeString = telnet.autoNegotiateTerminal();
 			
 				if(termTypeString==null) termTypeString = "ansi";
-			
+							
 				//Suppresses line mode with telnet protocol.
 				//The idea in telnet is : if I say i WILL, the client WONT
 				telnet.will(TelnetIO.ECHO);
 				telnet.will(TelnetIO.LINEMODE);
 		
-			
 				Terminal term = cursesFact.createTerminal(termTypeString,s);
 			
 				//Hook the terminal stream with a new Telnet client to respond to protocol commands.
-				TelnetIO telnetclient2 = new TelnetIO(logger,term.getInputStream(), term.getOutputStream());
-				term.replaceInputStream(telnetclient2.makeHookedInputStream());
-				term.replaceOutputStream(telnetclient2.makeHookedOutputStream());
+				//TelnetIO telnetclient2 = new TelnetIO(logger,term.getInputStream(), term.getOutputStream());
+				
+				telnet.enableResizeHandling(term);
+				
+				term.replaceInputStream(telnet.makeHookedInputStream());
+				term.replaceOutputStream(telnet.makeHookedOutputStream());
 				
 				//Creating an application may require terminal IO. it could fail and return null.
 				Screen app = appFactory.createScreen(term, cursesFact);

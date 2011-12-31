@@ -86,6 +86,7 @@ public class Screen extends Thread{
 		}finally{
 			winMan.stop();
 		}
+		sessions.remove(sessionId(session));
 		
 	}
 }

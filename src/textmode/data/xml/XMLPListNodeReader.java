@@ -27,7 +27,12 @@ public class XMLPListNodeReader {
 	}
 	private String contentText(Node n){
 		try{
-			return n.getFirstChild().getNodeValue();
+			
+			if(n.hasChildNodes())
+				return n.getFirstChild().getNodeValue();
+			
+			return "";
+			
 		}catch(NullPointerException e){
 			return "";
 		}

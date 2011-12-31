@@ -6,6 +6,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.Vector;
 
 import textmode.curses.Curses;
+import textmode.curses.TerminalResizedReceiver;
 import textmode.curses.application.Application;
 import textmode.curses.application.ApplicationFactory;
 import textmode.curses.application.FactoryLocator;
@@ -24,6 +25,7 @@ import textmode.curses.ui.event.CursorControlEvent;
 import textmode.curses.ui.event.Event;
 import textmode.curses.ui.event.EventReceiver;
 import textmode.curses.ui.event.RedrawEvent;
+import textmode.curses.ui.event.ResolutionChangeEvent;
 import textmode.curses.ui.event.StopUIThread;
 import textmode.curses.ui.event.TermKeyEvent;
 import textmode.curses.ui.event.TerminalInputEvent;
@@ -34,7 +36,7 @@ import textmode.xfer.ZModem;
 
 
 
-public class WindowManager implements EventReceiver {
+public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	
 	private final class TerminalInputEventer{
 		private Vector<Integer> history = new Vector<Integer>();
@@ -132,9 +134,10 @@ public class WindowManager implements EventReceiver {
 					}
 					
 				}catch(InterruptIOException no){
-					
+					no.printStackTrace();
 					
 				}catch(Exception e){
+					e.printStackTrace();
 					WindowManager.this.stop();
 					
 				}finally{
@@ -189,6 +192,7 @@ public class WindowManager implements EventReceiver {
 					}
 
 				}catch(InterruptedException ie){
+					ie.printStackTrace();
 				}
 			}
 		}
@@ -235,6 +239,8 @@ public class WindowManager implements EventReceiver {
 		rootApplication = root;
 		activePlane     = windowPlane;
 		termInput       = crs.getTerminal().getInputStream();
+		
+		crs.wantsResizedNotification(this);
 	}	
 	
 	public void setProcessorFactory(UiEventProcessorFactory factory){
@@ -270,6 +276,27 @@ public class WindowManager implements EventReceiver {
 		menuPlane.addChild(p);
 		menuPlane.refresh();
 		return p;
+	}
+	
+	/**
+	 * Only gives between 10% and 90%, perc is stuck to boundaries
+	 * @param perc
+	 * @return
+	 */
+	public Dimension percentOfScreen(double perc){
+		if(perc< 0.1) perc = 0.1;
+		if(perc> 0.9) perc = 0.9;
+		
+		perc = Math.sqrt(perc);
+		
+		return getScreenSize().scale(perc);
+	}
+	
+	public Dimension getScreenSize(){
+		try {
+			return new Dimension(crs.lines(),crs.cols());
+		} catch (IOException e) {}
+			return new Dimension(24,80);
 	}
 	
 	public Position getNextWindowPosition(){
@@ -422,7 +449,7 @@ public class WindowManager implements EventReceiver {
 	}
 	
 	/**
-	 * Receive all the events coming from the terminal stream.
+	 * Receives all the events coming from the terminal stream.
 	 */
 	private void processEvent(Event e){
 		
@@ -448,18 +475,25 @@ public class WindowManager implements EventReceiver {
 				ioe.printStackTrace();
 			}
 			return;
-		}		
+		}	
+		
+		
 		if(e instanceof RedrawEvent){
+			
 			Rectangle r = ((RedrawEvent)e).getArea();
+			
 			if(e.getSource() instanceof Component){
 				Rectangle nr = windowPlane.convertPosition(r,(Component)e.getSource());
 					
 				if(nr==null) 
 					nr = menuPlane.convertPosition(r,(Component)e.getSource());
-					
-				r=nr;
+				
+				if(nr!=null) 	
+					r=nr;
 			}
-			if(r!=null) rdThread.addRect(r);
+			
+			if(r!=null)
+				rdThread.addRect(r);
 
 			return;
 		}
@@ -490,14 +524,26 @@ public class WindowManager implements EventReceiver {
 			(processorFactory.createProcessor(new UiInputEvent((TerminalInputEvent)e),activePlane)).start();
 		}
 		
+		if(e instanceof ResolutionChangeEvent){
+
+			menuPlane.setSize(((ResolutionChangeEvent) e).size());
+			windowPlane.setSize(((ResolutionChangeEvent) e).size());
+			
+			menuPlane.refresh();
+			windowPlane.refresh();
+			
+			(processorFactory.createProcessor((UiEvent)e,menuPlane)).start();
+		}
+		
 		if(e instanceof UiEvent){
 			(processorFactory.createProcessor((UiEvent)e,windowPlane)).start();
 		}
 		
-		/**** EXIT Hook ****/
-		/*
-		 * if(e instanceof TermKeyEvent)
-		 * if( ((TermKeyEvent)e).getKey()==TermKeyEvent.EXIT )
+		/***** OLD EXIT Hook:
+		 **** the EXIT Key is now disabled
+		 *** to give a chance to the applications to get closed properly.
+		 **
+		 * if(e instanceof TermKeyEvent && ((TermKeyEvent)e).getKey()==TermKeyEvent.EXIT )
 		 *		stop();
 		 */
 	}
@@ -567,22 +613,23 @@ public class WindowManager implements EventReceiver {
 				}
 			}
 		}catch(ClosedChannelException cee){
+			cee.printStackTrace();
 		}
 		
 		if(isRunning())
 			stop();
 	}
 	
-	public ColorChar getTopCharAt(int line,int col){
-		return menuPlane.getCharAt(line, col);
+	public ColorChar getTopCharAt(Position p){
+		return menuPlane.getCharAt(p);
 	}
 	
 	private void redraw(Rectangle r) throws IOException{
-		redraw(r.getLine(),r.getCol(),r.getLines(),r.getCols());
+		redraw(r.getOrigin(),r.getDimension());
 	}
 	
-	private void redraw(int sLine,int sCol,int lines,int cols) throws IOException{
-		crs.drawColorCharArray(windowPlane.getPartialContent(sLine, sCol, lines, cols), sLine, sCol);
+	private void redraw(Position from,Dimension size) throws IOException{
+		crs.drawColorCharArray(windowPlane.getPartialContent(from, size), from);
 	}
 	
 	
@@ -636,6 +683,13 @@ public class WindowManager implements EventReceiver {
 		
 		windowPlane.refresh();
 		menuPlane.refresh();
+	}
+
+	public synchronized void terminalResized(int cols, int lines) {
+		
+		crs.resizeBuffer(cols, lines);
+		postEvent(new ResolutionChangeEvent(this, new Dimension(lines,cols)));
+
 	}
 	
 }

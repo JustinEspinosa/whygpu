@@ -5,10 +5,14 @@ import java.util.List;
 
 
 public class ColorStringBuilder {
-	private List<ColorChar> data = new ArrayList<ColorChar>(80);
+	private List<ColorChar> data = new ArrayList<ColorChar>();
 	
 	public void append(ColorChar cChar){
 		data.add(cChar);
+	}
+	
+	public int length(){
+		return data.size();
 	}
 	
 	public ColorString toColorString(){

@@ -5,6 +5,13 @@ import textmode.data.PropertyList;
 
 public class XMLPersistenceParameters extends PropertyList {
 	
+	public XMLPersistenceParameters(){
+	}
+
+	public XMLPersistenceParameters(String path){
+		pathName = path;
+	}
+	
 	@Property(persistant=true)
-	public String pathName;
+	public String pathName = "";
 }

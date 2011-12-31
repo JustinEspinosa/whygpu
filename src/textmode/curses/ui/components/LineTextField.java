@@ -33,7 +33,7 @@ public class LineTextField extends AbstractTextField{
 	}
 	private synchronized void eraseCursor(){
 		if((cursorColValid())){
-			ColorChar cc = getCharAt(0, cursorCol);
+			ColorChar cc = getCharAt(new Position(0, cursorCol) );
 		
 			if(isCursorOn())
 				setChar(0, cursorCol, cc.getChr());
@@ -41,7 +41,7 @@ public class LineTextField extends AbstractTextField{
 	}	
 	private synchronized void drawCursor(){
 		checkCursorPosition();
-		ColorChar cc = getCharAt(0, cursorCol);
+		ColorChar cc = getCharAt( new Position(0, cursorCol) );
 		
 		if(isCursorOn()){
 			setColor(cc.getColors().invert());

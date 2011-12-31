@@ -99,9 +99,14 @@ public class LineEdit extends Container<Component> implements PositionChangeList
 		}
 	}
 	
+	/**
+	 * TODO: I think i used this once for debugging reasons. can probably be deleted, it looks useless.
+	 * 
+	 * @see textmode.curses.ui.components.Container#getCharAt(textmode.curses.ui.Position)
+	 */
 	@Override
-	public ColorChar getCharAt(int line, int col) {
-		ColorChar cc = super.getCharAt(line, col);
+	public ColorChar getCharAt(Position p) {
+		ColorChar cc = super.getCharAt(p);
 		return cc;
 	}
 

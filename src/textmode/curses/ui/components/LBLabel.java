@@ -7,10 +7,27 @@ import textmode.curses.ui.Position;
 public class LBLabel extends Label{
 
 	private boolean selected = false;
+	private String  fullText;
 	
 	public LBLabel(String txt,Curses cs,Position p,Dimension d) {
 		super(txt, cs,p,d);
+		fullText = text;
+		formatText();
 		deselect();
+	}
+	
+	private void formatText(){
+		int cols = getSize().getCols();
+		
+		if(fullText.length() > cols)
+			setText(fullText.substring(0,cols-3)+"...");
+		else
+			setText(fullText);
+	}
+	
+	@Override
+	protected void userResized() {
+		formatText();
 	}
 	
 	public void deselect(){
@@ -29,6 +46,9 @@ public class LBLabel extends Label{
 	protected synchronized void redraw() {
 		if(selected) 
 			setColor(colors().getAlt(getClass()));
+		
+		formatText();
+		
 		super.redraw();
 	}
 	

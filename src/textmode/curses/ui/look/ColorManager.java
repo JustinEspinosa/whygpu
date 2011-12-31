@@ -15,6 +15,7 @@ import textmode.curses.ui.components.LBLabel;
 import textmode.curses.ui.components.Label;
 import textmode.curses.ui.components.LineEdit;
 import textmode.curses.ui.components.ListBox;
+import textmode.curses.ui.components.List;
 import textmode.curses.ui.components.MenuItem;
 import textmode.curses.ui.components.MultiLineEdit;
 import textmode.curses.ui.components.Panel;
@@ -45,7 +46,7 @@ public class ColorManager {
 		cm.set(AbstractTextField.class,      ColorDefaults.getDefaultColor(ColorType.EDIT   ));	
 		cm.set(MenuItem.class,               ColorDefaults.getDefaultColor(ColorType.MENU   ));
 		cm.set(ListBox.class,                ColorDefaults.getDefaultColor(ColorType.BUTTON ));
-		cm.set(ListBox.BackgroundPanel.class,ColorDefaults.getDefaultColor(ColorType.BUTTON ));
+		cm.set(List.class,                   ColorDefaults.getDefaultColor(ColorType.BUTTON ));
 		cm.set(Label.class,                  ColorDefaults.getDefaultColor(ColorType.WINDOW ));
 		cm.set(LBLabel.class,                ColorDefaults.getDefaultColor(ColorType.BUTTON ));
 		cm.set(Button.class,                 ColorDefaults.getDefaultColor(ColorType.BUTTON ));

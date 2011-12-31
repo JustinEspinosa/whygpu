@@ -1,13 +1,12 @@
 package textmode.xfer.zm.util;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.Map;
 
+import textmode.util.FileAdapter;
 import textmode.xfer.util.Arrays;
 import textmode.xfer.util.InvalidChecksumException;
 import textmode.xfer.zm.io.ZMPacketInputStream;
@@ -23,18 +22,18 @@ public class ZModemSend {
 	
 	private static final int packLen = 1024;
 	
-	private Map<String,File> files;
+	private Map<String,FileAdapter> files;
 	private Iterator<String> iter;
-	private File file;
+	private FileAdapter file;
 	private String fileName;
 	private int fOffset = 0;
 	private boolean atEof = false;
-	private FileInputStream fileIs;
+	private InputStream fileIs;
 	private InputStream netIs;
 	private OutputStream netOs;
 	
 	
-	public ZModemSend(Map<String,File> fls,InputStream netin,OutputStream netout) throws IOException{
+	public ZModemSend(Map<String,FileAdapter> fls,InputStream netin,OutputStream netout) throws IOException{
 		files = fls;
 		iter  = files.keySet().iterator();
 
@@ -51,7 +50,7 @@ public class ZModemSend {
 		fileName = iter.next();
 		
 		file = files.get(fileName);
-		fileIs = new FileInputStream(file);
+		fileIs = file.getInputStream();
 		fOffset = 0;
 		
 		return true;
@@ -60,7 +59,7 @@ public class ZModemSend {
 	private void position(int offset) throws IOException{
 		if(offset!=fOffset){
 			fileIs.close();
-			fileIs = new FileInputStream(file);
+			fileIs = file.getInputStream();
 			fileIs.skip(offset);
 			fOffset = offset;
 		}

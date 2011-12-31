@@ -7,6 +7,9 @@ import java.util.Vector;
 import java.util.logging.Logger;
 
 import textmode.curses.term.ByteVector;
+import textmode.curses.term.Terminal;
+import textmode.xfer.util.Arrays;
+import textmode.xfer.util.Arrays.Endianness;
 
 
 
@@ -56,6 +59,7 @@ public class TelnetIO {
 	
 	/* some useful options */
 	public final static byte TERMINAL_TYPE = (byte)24;
+	public final static byte NAWS = (byte)31;
 	public final static byte LINEMODE = (byte)34;
 	public final static byte ECHO = (byte)1;
 	public final static byte SUPPRESS_GOAHEAD = (byte)3;
@@ -97,7 +101,7 @@ public class TelnetIO {
 	@SuppressWarnings("rawtypes")
 	protected Vector[]  subNegHistory   = new Vector[256];
 	
-	
+	private Terminal term = null;
 	
 	private Logger logger = null;
 	private boolean logging = true;
@@ -133,19 +137,29 @@ public class TelnetIO {
 		return new TelnetInputStream();
 	}
 
-	public int telnetRead(boolean readMore) throws IOException{
+	private int telnetRead0() throws IOException{
 		int b = is.read();
-				
 		if( (byte)b == IAC  && (b != 0xffffffff) ){
-			
 			if(canLog())
 				logger.fine("Telnet IAC Received");
 						
-			boolean gotIAC2 = readCommand();
-			
-			if(!gotIAC2 && readMore)
-				b = is.read();
+			if(readCommand())
+				return IAC;
+			else
+				return -2;
 		}
+		return b;
+	}
+	
+	public int telnetRead(boolean readMore) throws IOException{
+		int b = telnetRead0();
+		
+		while(b == -2 && readMore )
+			b = telnetRead0();
+		
+		if( b == -2 )
+			b = 0xff;
+		
 		return b;
 	}
 	
@@ -208,14 +222,29 @@ public class TelnetIO {
 
 	}
 	
+	private void readNaws(){
+		if(term==null) return;
+		ByteVector bytes = getLastSubNegotiation(NAWS);
+		if(bytes.size()>=4){
+			short cols = Arrays.toShort(bytes.toArray(0,2), Endianness.Little);
+			short lines = Arrays.toShort(bytes.toArray(2,2), Endianness.Little);
+			term.setCols(cols);
+			term.setLines(lines);
+			term.resized();
+		}
+	}
+	
 	@SuppressWarnings("unchecked")
 	protected void negotation(byte option) throws IOException{
 		
 		if(canLog())
 			logger.fine("Telnet Negotiation : "+ TelnetProtocolDebug.getName(option) );
 		
-		if(inSubNeg[option]){
+		/* constantly monitor for naws to allow window resize*/
+		if(inSubNeg[option] || (option==NAWS && term!=null)){
 			subNegHistory[option].add( readNegotiationString() );
+			if(option==NAWS)
+				readNaws();
 		}
 	}
 	
@@ -255,14 +284,19 @@ public class TelnetIO {
 	protected ByteVector readNegotiationString() throws IOException{
 		ByteVector bld = new ByteVector();
 		byte b = (byte)is.read();
-		while(b!=SE){
-			if(b!=IAC)
+		boolean gotiac = false;
+		while( !(b==SE&&gotiac) ){
+			if(b!=IAC){
 				bld.add(b);
+				gotiac = false;
+			}else{
+				gotiac = true;
+			}
 			b = (byte)is.read();
 		}
 		
 		if(canLog())
-				logger.fine("Telnet Sub-negotation string: "+bld.toString());
+			logger.fine("Telnet Sub-negotation string: "+bld.toString());
 		
 		return bld;
 	}
@@ -352,5 +386,9 @@ public class TelnetIO {
 		return null;
 	}
 	
+	public void enableResizeHandling(Terminal trm) throws IOException{
+		if(do_(NAWS))
+			term = trm;
+	}
 	
 }

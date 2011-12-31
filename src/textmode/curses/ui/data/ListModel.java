@@ -1,6 +1,6 @@
 package textmode.curses.ui.data;
 
-public interface ListBoxModel {
+public interface ListModel {
 	public int getItemCount();
 	public Object getItemAt(int index);
 }

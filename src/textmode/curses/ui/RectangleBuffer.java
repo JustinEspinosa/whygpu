@@ -21,7 +21,7 @@ public class RectangleBuffer {
 	private boolean wake = false;
 	
 	private void reduce(Rectangle r){
-
+		
 		Enumeration<Rectangle> eR = area.elements();
 		
 		while(eR.hasMoreElements()){

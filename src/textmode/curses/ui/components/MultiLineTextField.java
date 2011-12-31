@@ -23,8 +23,7 @@ import textmode.curses.ui.event.UiInputEvent;
 public class MultiLineTextField extends AbstractTextField {
 
 	private Vector<StringBuilder> textContent = new Vector<StringBuilder>();
-	private int cursorCol  = 0;
-	private int cursorLine = 0;
+	private Position cursorLoc = Position.ORIGIN.copy();
 	private boolean readOnly = false;
 	
 	public MultiLineTextField(Curses cs,Position p) {
@@ -34,52 +33,76 @@ public class MultiLineTextField extends AbstractTextField {
 		drawContent();
 	}
 	
-	private boolean cursorLineValid(){
-		return (cursorLine>=0) && (cursorLine<textContent.size());
+	private int cursorLine(){
+		return cursorLoc.getLine();
 	}
+	private int cursorCol(){
+		return cursorLoc.getCol();
+	}
+	
+	private boolean cursorLineValid(){
+		return (cursorLine()>=0) && (cursorLine()<textContent.size());
+	}
+	
 	private boolean cursorColValid(){
 		if(cursorLineValid())
-			return (cursorCol>=0) && (cursorCol<=textContent.elementAt(cursorLine).length());
+			return (cursorCol()>=0) && (cursorCol()<=textContent.elementAt(cursorLine()).length());
 		else
 			return false;
 	}
+	
+	private boolean cursorPositionValid(){
+		return  cursorLineValid() && cursorColValid();
+	}
+	
 	private void checkCursorCol(){
-		if(cursorCol<0)
-			cursorCol = 0;
+		int col = cursorCol();
+		
+		if(cursorCol()<0)
+			col = 0;
 			
-		if(cursorCol>textContent.elementAt(cursorLine).length())
-			cursorCol = textContent.elementAt(cursorLine).length();
+		if(cursorCol()>textContent.elementAt(cursorLine()).length())
+			col = textContent.elementAt(cursorLine()).length();
 		
+		if(col!=cursorCol())
+			cursorLoc = cursorLoc.withNewCol(col);
 	}
+	
 	private void checkCursorLine(){
-		if(cursorLine<0)
-			cursorLine = 0;
+		int line = cursorLine();
 		
-		if(cursorLine>textContent.size()-1) 
-			cursorLine = textContent.size()-1;
+		if(cursorLine()<0)
+			line = 0;
+		
+		if(cursorLine()>textContent.size()-1) 
+			line = textContent.size()-1;
+		
+		if(line!=cursorLine())
+			cursorLoc = cursorLoc.withNewLine(line);
 	}
+	
 	private void checkCursorPosition(){
 		checkCursorLine();
 		checkCursorCol();
 	}
 	
 	private synchronized void eraseCursor(){
-		if(cursorColValid()){
-			ColorChar cc = getCharAt(cursorLine, cursorCol);
+		if(cursorPositionValid()){
+			
+			ColorChar cc = getCharAt( cursorLoc );
 		
 			if(isCursorOn())
-				setChar(cursorLine, cursorCol, cc.getChr());
+				setChar( cursorLoc, cc.getChr() );
 		}
 	}
 	
 	private synchronized void drawCursor(){
 		checkCursorPosition();
-		ColorChar cc = getCharAt(cursorLine, cursorCol);
 		
-		if(isCursorOn() && cc!=null){
-			setColor(cc.getColors().invert());
-			setChar(cursorLine, cursorCol, cc.getChr());
-			setColor(colors().get(getClass()));
+		if(isCursorOn()){
+			ColorChar cc = getCharAt( cursorLoc ).copy();
+			cc.setColor(cc.getColors().invert());
+			setChar(cursorLoc, cc);
 		}
 	}
 	
@@ -104,14 +127,15 @@ public class MultiLineTextField extends AbstractTextField {
 	private void deleteChar(){
 		checkCursorPosition();
 		
-		if(cursorCol>0){
-			textContent.elementAt(cursorLine).deleteCharAt(--cursorCol);
+		if(cursorCol()>0){
+			cursorLoc = cursorLoc.horizontal(-1);
+			textContent.elementAt(cursorLine()).deleteCharAt(cursorCol());
 		}else{
-			if(cursorLine>0){
-				StringBuilder line = textContent.elementAt(cursorLine);
-				textContent.remove(cursorLine--);
-				cursorCol = textContent.elementAt(cursorLine).length();
-				textContent.elementAt(cursorLine).append(line);
+			if(cursorLine()>0){
+				StringBuilder line = textContent.elementAt(cursorLine());
+				textContent.remove(cursorLine());
+				cursorLoc = new Position(cursorLine()-1,textContent.elementAt(cursorLine()).length());
+				textContent.elementAt(cursorLine()).append(line);
 			}
 		}
 		
@@ -120,15 +144,20 @@ public class MultiLineTextField extends AbstractTextField {
 	/* replace mode is for the future.. */
 	private void insertChar(char c){
 		checkCursorPosition();
-		textContent.elementAt(cursorLine).insert(cursorCol++, c);
+		textContent.elementAt(cursorLine()).insert(cursorCol(), c);
+		cursorLoc = cursorLoc.horizontal(1);
 	}
+	
 	private void inserLine(){
 		checkCursorPosition();
-		StringBuilder line = textContent.elementAt(cursorLine);
-		textContent.insertElementAt(new StringBuilder(line.toString().substring(0,cursorCol)),cursorLine);
-		cursorLine++;
-		line.delete(0,cursorCol);
-		cursorCol=0;
+		
+		StringBuilder line = textContent.elementAt(cursorLine());
+		
+		textContent.insertElementAt(new StringBuilder(line.toString().substring(0,cursorCol())),cursorLine());
+		
+		line.delete(0,cursorCol());
+		
+		cursorLoc = new Position(cursorLine()+1,0);
 	}
 	
 	protected final void editText(char c){
@@ -152,7 +181,7 @@ public class MultiLineTextField extends AbstractTextField {
 	}
 	
 	public Position getCursorPosition(){
-		return new Position(cursorLine,cursorCol);
+		return cursorLoc.copy();
 	}
 
 	@Override
@@ -187,42 +216,42 @@ public class MultiLineTextField extends AbstractTextField {
 	}
 
 	private void cursorLeft(){
-		if(cursorCol>0){
-			cursorCol--;
+		if(cursorCol()>0){
+			cursorLoc = cursorLoc.horizontal(-1);
 		}else{
-			if(cursorLine>0){
-				cursorLine--;
+			if(cursorLine()>0){
+				cursorLoc = cursorLoc.vertical(-1);
 				cursorEnd();
 			}
 		}
 	}
 	private void cursorRight(){
-		if(cursorCol<textContent.elementAt(cursorLine).length()){
-			cursorCol++;
+		if(cursorCol() <textContent.elementAt(cursorLine() ).length()){
+			cursorLoc = cursorLoc.horizontal(1);
 		}else{
-			if(cursorLine<textContent.size()-1){
-				cursorLine++;
-				cursorCol = 0;
-			}
+			if(cursorLine()<textContent.size()-1)
+				cursorLoc = new Position(cursorLine()+1,0);
 		}
 	}
 	private void cursorEnd(){
 		
-			cursorCol = textContent.elementAt(cursorLine).length();
+			cursorLoc = cursorLoc.withNewCol(textContent.elementAt(cursorLine()).length());
 	}
 
 	private void cursorUp(){
-		if(cursorLine>0){
-			cursorLine--;
-			if(cursorCol>textContent.elementAt(cursorLine).length())
+
+		if(cursorLine()>0){
+			cursorLoc = cursorLoc.vertical(-1);
+			if(cursorCol()>textContent.elementAt(cursorLine()).length())
 				cursorEnd();
 		}
+		
 	}
 	private void cursorDown(){
 		
-		if(cursorLine<textContent.size()-1){
-			cursorLine++;
-			if(cursorCol>textContent.elementAt(cursorLine).length())
+		if(cursorLine() < textContent.size()-1){
+			cursorLoc = cursorLoc.vertical(1);
+			if(cursorCol()>textContent.elementAt(cursorLine()).length())
 				cursorEnd();
 		}
 	}
@@ -245,9 +274,9 @@ public class MultiLineTextField extends AbstractTextField {
 	
 	protected final void cursorTo(Position d){
 		eraseCursor();
-		cursorLine = d.getLine();
-		cursorCol  = d.getCol();
+		cursorLoc = d.copy();
 		drawCursor();
+		
 		notifyPositionChanged();
 		
 	}

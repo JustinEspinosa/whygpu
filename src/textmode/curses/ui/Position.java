@@ -10,6 +10,14 @@ public class Position {
 		col = c;
 		line = l;
 	}
+	
+	public <T> T getAt(T[][] arr){
+		return arr[line][col];
+	}
+	public <T> void setAt(T[][] arr, T v){
+		arr[line][col] = v;
+	}
+	
 	public int getCol(){
 		return col;
 	}
@@ -21,9 +29,26 @@ public class Position {
 		return "Position("+line+";"+col+")";
 	}
 	
+	public Position relativeTo(Position p){
+		return translate(-p.line,-p.col);
+	}
+	
+	public Position translate(int vdiff,int hdiff){
+		return new Position(line+vdiff,col+hdiff);
+	}
+	
+	public Position withNewCol(int newcol){
+		return new Position(line,newcol);
+	}
+	
 	public Position horizontal(int diff){
 		return new Position(line,col+diff);
 	}
+	
+	public Position withNewLine(int newline){
+		return new Position(newline,col);
+	}
+	
 	public Position vertical(int diff){
 		return new Position(line+diff,col);
 	}
@@ -57,5 +82,13 @@ public class Position {
 			return ((Position)obj).line==line && ((Position)obj).col==col;
 		
 		return false;
+	}
+
+	public Position add(Position p) {
+		return new Position(line+p.line,col+p.col);
+	}
+	
+	public Position subtract(Position p) {
+		return new Position(line-p.line,col-p.col);
 	}
 }

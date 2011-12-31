@@ -41,11 +41,21 @@ public class Rectangle {
 	private boolean includesVertically(Rectangle r){
 		return (r.getLine() >= getLine() && r.getLine()+r.getLines() <= getLine()+getLines());
 	}
+	
 	private boolean includesHorizontally(Rectangle r){
 		return (r.getCol() >= getCol() && r.getCol()+r.getCols() <= getCol()+getCols());
-	}	
+	}
+	
 	public boolean includes(Rectangle r){
 		return includesVertically(r) && includesHorizontally(r);
+	}
+	
+	public Rectangle moveTo(Position p){
+		return new Rectangle(p, dim);
+	}
+	
+	public Rectangle moveOf(Position p){
+		return new Rectangle(pos.add(p), dim);		
 	}
 	
 }

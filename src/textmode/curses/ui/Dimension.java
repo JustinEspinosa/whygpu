@@ -1,22 +1,29 @@
 package textmode.curses.ui;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-public class Dimension {
+public class Dimension implements Iterable<Position>{
 	
 	private class PositionIterator implements Iterator<Position>{
+		private Position corner;
 		private Position current;
 		private Position currentLine;
 
+		public PositionIterator(Position start){
+			corner      = start.copy();
+			current     = start.copy();
+			currentLine = start.copy();
+		}
+		
 		public PositionIterator(){
-			current = Position.ORIGIN.copy();
-			currentLine = Position.ORIGIN.copy();
+			this(Position.ORIGIN);
 		}
 		
 		public boolean hasNext() {
-			return includes(current);
+			return includes(current.subtract(corner));
 		}
 
 		public Position next() {
@@ -24,12 +31,12 @@ public class Dimension {
 			
 			current = current.right();
 			
-			if(!includes(current)){
+			if(!includes(current.subtract(corner))){
 				currentLine = currentLine.down();
 				current = currentLine.copy();
 			}
 
-			if(includes(retPos))
+			if(includes(retPos.subtract(corner)))
 				return retPos;
 			else
 				return null;
@@ -43,23 +50,27 @@ public class Dimension {
 	
 	public static final Dimension UNITY = new Dimension(1, 1);
 	
-	private int nLines;
-	private int nCols;
+	private long nLines;
+	private long nCols;
 	/**
 	 * The dimensions are abs()ized.
 	 * @param lines
 	 * @param cols
 	 */
 	public Dimension(int lines,int cols){
+		this((long)lines,(long)cols);
+	}
+	
+	public Dimension(long lines, long cols) {
 		nLines = Math.abs(lines);
 		nCols  = Math.abs(cols);
 	}
-	
+
 	public int getCols(){
-		return nCols;
+		return (int)nCols;
 	}
 	public int getLines(){
-		return nLines;
+		return (int)nLines;
 	}
 	
 	@Override
@@ -96,6 +107,17 @@ public class Dimension {
 		return new Dimension(nLines,nCols);
 	}
 	
+	public Dimension keepLines(int cols){
+		return new Dimension(nLines,cols);
+	}
+	public Dimension keepCols(int lines){
+		return new Dimension(lines,nCols);
+	}
+	
+	public Dimension scale(double mult){
+		return new Dimension((long)(mult*(double)nLines),(long)(mult*(double)nCols));
+	}
+	
 	@Override
 	public boolean equals(Object obj) {
 		if(obj instanceof Dimension)
@@ -104,7 +126,16 @@ public class Dimension {
 		return false;
 	}
 	
+	public Iterator<Position> iterator(Position start){
+		return new PositionIterator(start);
+	}
+	
 	public Iterator<Position> iterator(){
 		return new PositionIterator();
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <T> T[][] newArrayOf(Class<T> type){
+		return (T[][]) Array.newInstance(type,(int)nLines,(int)nCols); 
 	}
 }

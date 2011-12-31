@@ -35,8 +35,7 @@ public class XMLPListPersistor<T extends PropertyList> extends PropertyListPersi
 	
 	
 	public static <T extends PropertyList> XMLPListPersistor<T> fromParameterFile(String pathName, Class<T> type){
-		XMLPersistenceParameters params = new XMLPersistenceParameters();
-		params.set("pathName", pathName);
+		XMLPersistenceParameters params = new XMLPersistenceParameters(pathName);
 		
 		return new XMLPListPersistor<T>(params);
 	}

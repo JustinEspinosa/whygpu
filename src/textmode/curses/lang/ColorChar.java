@@ -13,7 +13,10 @@ public class ColorChar {
 	}
 
 	public void setChr(char chr) {
-		this.chr = chr;
+		if(chr > 0x19 && chr < 0x80)
+			this.chr = chr;
+		else
+			this.chr = '?';
 	}
 
 	public char getChr() {
@@ -43,7 +46,7 @@ public class ColorChar {
 	
 	@Override
 	public String toString() {
-		 return new String(new char[]{chr});
+		 return "'"+new String(new char[]{chr})+"', "+cPair;
 	}
 
 	

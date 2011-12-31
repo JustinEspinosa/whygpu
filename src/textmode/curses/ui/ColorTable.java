@@ -7,9 +7,9 @@ import java.util.Iterator;
 
 public class ColorTable<T extends Color> extends ArrayList<RGB>{
 
-	public static ColorTable<AnsiColor8> AnsiColor8 = new ColorTable<AnsiColor8>(AnsiColor8.class);
-	public static ColorTable<AnsiColor16> AnsiColor16 = new ColorTable<AnsiColor16>(AnsiColor16.class);
-	public static ColorTable<XTermColor256> XTermColor256 = new ColorTable<XTermColor256>();
+	public static ColorTable<AnsiColor8> AnsiColor8 = new ColorTable<AnsiColor8>(ColorDepth.COL8,AnsiColor8.class);
+	public static ColorTable<AnsiColor16> AnsiColor16 = new ColorTable<AnsiColor16>(ColorDepth.COL16,AnsiColor16.class);
+	public static ColorTable<XTermColor256> XTermColor256 = new ColorTable<XTermColor256>(ColorDepth.COL256);
 
 	private static EnumMap<ColorDepth,ColorTable<?>> tables = new EnumMap<ColorDepth,ColorTable<?>>(ColorDepth.class);
 	
@@ -313,7 +313,7 @@ public class ColorTable<T extends Color> extends ArrayList<RGB>{
 				RGB toRGB = table.findNearestIndex(from.rgb());
 				return table.finder().find(toRGB.index());
 			}else{
-				return new XTermColor256(from.rgb().x(), from.rgb().y(), from.rgb().z());
+				return new XTermColor256(from.rgb());
 			}
 		}
 		return from;
@@ -322,10 +322,18 @@ public class ColorTable<T extends Color> extends ArrayList<RGB>{
 	private static final long serialVersionUID = -4863045937566709141L;
 
 	private AnsiColorFinder<T> colorFinder = null;
+	private ColorDepth depth = null;
 	
-	public ColorTable(){}
-	public ColorTable(Class<? extends Enum<?>> eClass){
+	public ColorTable(ColorDepth d){
+		depth = d;
+	}
+	public ColorTable(ColorDepth d,Class<? extends Enum<?>> eClass){
+		this(d);
 		colorFinder = new AnsiColorFinder<T>(eClass);
+	}
+	
+	public ColorDepth depth(){
+		return depth;
 	}
 	
 	public AnsiColorFinder<?> finder(){
@@ -335,7 +343,7 @@ public class ColorTable<T extends Color> extends ArrayList<RGB>{
 	public boolean mustFind(){
 		return colorFinder!=null;
 	}
-	
+		
 	public RGB findNearestIndex(RGB col){
 		double minDist=Double.MAX_VALUE; RGB min = get(0);
 		

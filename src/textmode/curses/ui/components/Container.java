@@ -15,6 +15,8 @@ import textmode.curses.ui.event.UiEvent;
 
 
 public abstract class Container<T extends Component> extends Component{
+	
+	
 	private Vector<T> childComponents = new Vector<T>();
 	private T focused = null;
 	
@@ -129,17 +131,18 @@ public abstract class Container<T extends Component> extends Component{
 	}
 	
 	@Override
-	public synchronized ColorChar getCharAt(int line,int col){
+	public synchronized ColorChar getCharAt(Position p){
 		
-		ColorChar cc = null;
-		ColorChar myCc = super.getCharAt(line, col);
+		ColorChar cc   = null;
+		ColorChar myCc = super.getCharAt(p);
 	
 		//don't draw children if i'm not under them
 		if(myCc!=null || transparent)
 			for( int z = childComponents.size() - 1 ; z >= 0 && cc==null; z--){
 				T c = childComponents.elementAt(z);
+				
 				if(c.isVisible()) 
-					cc = c.getCharAt(line - c.getPosition().getLine(), col - c.getPosition().getCol());
+					cc = c.getCharAt(  p.relativeTo(c.getPosition()) );
 			}	
 		
 		if(cc == null)
@@ -182,23 +185,13 @@ public abstract class Container<T extends Component> extends Component{
 	}
 	
 	protected Rectangle stickInside(Rectangle r){
-		int line = Math.max(r.getLine(),0);
-		int col = Math.max(r.getCol(),0);
+		int line  = Math.max(r.getLine(),0);
+		int col   = Math.max(r.getCol(),0);
 		int line1 = Math.min(r.getLine()+r.getLines(),getSize().getLines()-1);
-		int col1 = Math.min(r.getCol()+r.getCols(),getSize().getCols()-1);
+		int col1  = Math.min(r.getCol()+r.getCols(),getSize().getCols()-1);
 		
 		return new Rectangle(line,col,Math.abs(line1-line),Math.abs(col1-col));
 	}
-	
-	private Rectangle convertPositionOfChild(Rectangle r,Component c){
-		int line = r.getLine() + c.getPosition().getLine();
-		int col = r.getCol() + c.getPosition().getCol();
-		int lines = r.getLines();
-		int cols = r.getCols();
-		
-		return new Rectangle(line, col, lines, cols);
-	}
-
 	
 	protected synchronized Enumeration<T> rchildren(){
 		Vector<T> rlist = new Vector<T>(childComponents);
@@ -214,35 +207,54 @@ public abstract class Container<T extends Component> extends Component{
 		return childComponents.contains(c);
 	}
 	
+	/**
+	 * If possible, returns r translated to the origin (0,0),
+	 * else null.
+	 * 
+	 * Redraw events are sent relative to the sender Component
+	 * The location to be redrawn must computed through the 
+	 * component tree.
+	 * 
+	 * @param r
+	 * @param c
+	 * @return
+	 */
 	public synchronized final Rectangle convertPosition(Rectangle r,Component c){
 		
+		//me: no change
 		if(c==this) return r;
 		
-		if(hasChild(c))
-			return convertPositionOfChild(r,c);
+		//one of my children: I can convert
+		if(hasChild(c)) return r.moveOf(c.getPosition());
 		
-		/* The target is not me nor one of my children: search in children */
+		//else, ask all my child containers if they can convert
 		Enumeration<T> ec = children();
 		while(ec.hasMoreElements()){
 			Component subc = ec.nextElement();
 			if(subc instanceof Container<?>){
-				Rectangle rr = ((Container<?>)subc).convertPosition(r,c);
-				/* this child has it. now np is relative to it */
-				if(rr!=null){
-					return convertPositionOfChild(rr,subc);
-				}
+				Rectangle rconverted = ((Container<?>)subc).convertPosition(r,c);
+				if(rconverted!=null) return rconverted.moveOf(subc.getPosition());
 			}
 		}
 		
+		//Not i my subtree, I cannot convert.
 		return null;
 	}
 	
+	/**
+	 * Brigde to convert from position to position, instead of from Rectangle to Rectangle.
+	 * @param p
+	 * @param c
+	 * @return
+	 */
 	public final Position convertPosition(Position p,Component c){
-		Rectangle r = convertPosition(new Rectangle(p.getLine(), p.getCol(), 0, 0),c);
+	try{
+			
+		return convertPosition( new Rectangle(p, Dimension.UNITY),c).getPosition();
+			
+	}catch(NullPointerException e){}
 		
-		if(r==null) return null;
-		
-		return r.getPosition();
+		return null;
 	}
 	
 	@Override
