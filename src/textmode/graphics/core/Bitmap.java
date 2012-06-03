@@ -47,7 +47,8 @@ public class Bitmap{
 		while(i.hasNext()){
 			Position curr = i.next();
 			int c = curr.getCol(), l = curr.getLine();
-			RGB oldcol = new RGB(raster.getPixel(c, l, new int[3]));
+
+			RGB oldcol = new RGB(raster.getPixel(c, l, new int[4]));
 			RGB newcol = palette.findNearestIndex(oldcol);
 			RGB error  = new RGB(oldcol,newcol);
 			topList.plusOne(newcol);
@@ -57,6 +58,7 @@ public class Bitmap{
 			updateColor(raster,nextLine.right(),error, 3./16.);
 			updateColor(raster,nextLine,error, 5./16.);
 			updateColor(raster,nextLine.left(),error, 1./16.);
+
 		}
 		
 		RGB bg = topList.getFirst();

@@ -91,7 +91,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 		 * @return
 		 */
 		private synchronized Event pop() throws InterruptedException{
-			if(queue.size()<1)
+			while(queue.size()<1)
 				wait();
 			
 			Event r = queue.elementAt(0);
