@@ -88,11 +88,11 @@ public class Header extends ZMPacket{
 	}
 	
 	public void setPos(int num){
-		data = Arrays.fromInt(num, Arrays.Endianness.Big);
+		data = Arrays.fromInt(num, Arrays.Endianness.Little);
 	}
 	
 	public int getPos(){
-		return Arrays.toInt(data,Arrays.Endianness.Big);
+		return Arrays.toInt(data,Arrays.Endianness.Little);
 	}
 	
 	@Override

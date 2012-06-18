@@ -72,7 +72,7 @@ public abstract class Container<T extends Component> extends Component{
 		try{
 			return childComponents.elementAt(index);
 		}catch(ArrayIndexOutOfBoundsException aioobe){
-			aioobe.printStackTrace();
+			//aioobe.printStackTrace();
 			return null;
 		}
 	}

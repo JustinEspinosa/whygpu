@@ -8,7 +8,7 @@ public class ASCIIPicture {
 	private ColorChar[][] data;
 	private Dimension size;
 	
-	private static final char[] glyphs = {' ','.',',','-','+','*','%','$','#'};
+	private static final char[] glyphs = {' ','.',',','-','+','O','%','$','#'};
 	
 	public static char getChar(double percFG){
 		if(percFG>1) percFG=1;

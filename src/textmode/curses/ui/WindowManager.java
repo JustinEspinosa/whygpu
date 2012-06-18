@@ -2,8 +2,10 @@ package textmode.curses.ui;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.ClosedChannelException;
 import java.util.Vector;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 import textmode.curses.Curses;
 import textmode.curses.TerminalResizedReceiver;
@@ -12,7 +14,7 @@ import textmode.curses.application.ApplicationFactory;
 import textmode.curses.application.FactoryLocator;
 import textmode.curses.application.RootApplication;
 import textmode.curses.lang.ColorChar;
-import textmode.curses.term.io.InterruptIOException;
+import textmode.curses.term.Terminal;
 import textmode.curses.ui.components.Component;
 import textmode.curses.ui.components.MenuBar;
 import textmode.curses.ui.components.MenuPlane;
@@ -32,6 +34,7 @@ import textmode.curses.ui.event.TerminalInputEvent;
 import textmode.curses.ui.event.UiEvent;
 import textmode.curses.ui.event.UiInputEvent;
 import textmode.curses.ui.look.ColorTheme;
+import textmode.util.SuspendableThread;
 import textmode.xfer.ZModem;
 
 
@@ -75,118 +78,153 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	}
 	
 	private final class EventQueue{
-		private Vector<Event> queue = new Vector<Event>();
+		private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<Event>(200);
+
 		private EventQueue() { }
 		/**
 		 * Put a new event
 		 * @param e
+		 * @throws  
 		 */
-		private synchronized void put(Event e){
-			queue.add(e);
-			notify();
+		private void put(Event e)  {
+			try{
+				queue.put(e);
+			}catch(InterruptedException ie){}
 		}
 
 		/**
 		 * Get the current event and removing (making next event current)
 		 * @return
 		 */
-		private synchronized Event pop() throws InterruptedException{
-			while(queue.size()<1)
-				wait();
-			
-			Event r = queue.elementAt(0);
-			queue.remove(0);
-			return r;
+		private Event pop() throws InterruptedException{
+			return queue.take();
 		}
 	}
 	
-	private final class RedrawThread extends Thread{
-		private boolean redrawrunnig = true;
-		private RectangleBuffer buffer = new RectangleBuffer();
-		private RedrawThread(ThreadGroup thg) { 
-			super(thg,"Redraw");
+	private static class Driver extends SuspendableThread{
+		private AtomicBoolean running = new AtomicBoolean(false);
+		
+		public Driver(ThreadGroup thg, String n) {
+			super(thg,n);
+		}
+		
+		@Override
+		public synchronized void start() {
+			running.set(true);
+			super.start();
+		}
+		
+		public boolean isRunning(){
+			return running.get();
+		}
+		
+		public void stopAsap(){
+			running.set(false);
+		}
+	}
+	
+	private final class InputDriver extends Driver{
+		
+		private InputDriver(ThreadGroup thg) { 
+			super(thg,"Read");
 			setDaemon(true);
 		}
 		
+		@Override
+		public void run(){
+			try{
+				while(isRunning()){
+
+					pauseIfNeeded();
+
+					terminal.acquireRead();
+
+					if(isRunning()){		
+						try{
+							int b = termInput.read();						
+							if(b == 0xffffffff)
+								throw new IOException("end of stream");
+									
+							eventer.put(b);
+						}catch(IOException e){
+							if(!(e.getCause() instanceof InterruptedException))
+								throw e;
+						}
+					}
+
+					terminal.releaseRead();
+
+				}
+					
+			}catch(Exception e){
+				e.printStackTrace();
+			}finally{
+				WindowManager.this.stop();
+			}
+				
+		}
+	}
+
+	
+	private final class OutputDriver extends Driver{
+		private RectangleBuffer buffer = new RectangleBuffer();
+		
+		private OutputDriver(ThreadGroup thg) { 
+			super(thg,"Write");
+			setDaemon(true);
+		}
 		
 		public void addRect(Rectangle r){
 			buffer.addToArea(r);
 		}
 		
-		public void wakeup(){
-			buffer.wakeup();
-		}
-		
-		private synchronized boolean isRunning(){
-			return redrawrunnig;
-		}
-		private synchronized void stopMe(){
-			redrawrunnig = false;
-		}
 		@Override
 		public void run(){
-			while(this.isRunning()){
-				try{
+			try{
+				while(isRunning()){
 					
-					Rectangle[] rArray= buffer.getArea();
-					for(int n=0;n<rArray.length;n++){
-						redraw(rArray[n]);
-					}
+					pauseIfNeeded();
 					
-				}catch(InterruptIOException no){
-					no.printStackTrace();
+					sleep(50);
+					Rectangle[] rArray = buffer.getArea();
 					
-				}catch(Exception e){
-					e.printStackTrace();
-					WindowManager.this.stop();
-					
-				}finally{
 
-					boolean wmIsSuspended = false;
+					terminal.acquireWrite();
 					
-					synchronized(WindowManager.this){
-						wmIsSuspended = suspended;
-						WindowManager.this.notify();
+					if(isRunning()){
+						for(Rectangle r : rArray)
+							redraw(r);
 					}
 					
-					if(wmIsSuspended){
-						synchronized(this){
-							try {
-								wait();
-							} catch (InterruptedException e) { 
-								e.printStackTrace();
-							}
-						}
-					}
+					terminal.releaseWrite();
+					
 				}
+				
+			}catch(Exception e){
+				e.printStackTrace();
+			}finally{
+				WindowManager.this.stop();
 			}
+				
+
 		}
 	}
 
-	private final class UIThread extends Thread{
-		private boolean uirunning = true;
+	private final class EventDispatcher extends Driver{
 		
-		private UIThread(ThreadGroup thg) { 
-			super(thg,"EventConsumer");
+		private EventDispatcher(ThreadGroup thg) { 
+			super(thg,"EventDispatcher");
 			setDaemon(true);
-		}
-		
-		private synchronized boolean isRunning(){
-			return uirunning;
-		}
-		
-		private synchronized void stopMe(){
-			uirunning = false;
 		}
 		
 		@Override
 		public void run(){
-			while(this.isRunning()){
+			while(isRunning()){
 				try{
 					Event ev = evQueue.pop();
 					if(ev!=null){
 						if(ev instanceof StopUIThread)
-							stopMe();
+							stopAsap();
 						else
 							processEvent(ev);
 					}
@@ -197,22 +235,18 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			}
 		}
 	}
-
-
-	private Vector<Application>  runningApps = new Vector<Application>();
-	private EventQueue           evQueue     = new EventQueue();
-	private TerminalInputEventer eventer     = new TerminalInputEventer();
-	private EscapeDetector       detector    = new EscapeDetector();
-	private boolean              running     = false;
-	private FactoryLocator       appList     = new FactoryLocator();
-	private Object               readLock    = new Object();
 	
 	private UiEventProcessorFactory processorFactory = new UiEventProcessorFactory() {
 		public UiEventProcessor createProcessor(UiEvent e, RootPlane<?> plane) {
 			return new UiEventProcessor(e,plane);
 		}
 	};
-	
+
+	private Vector<Application>  runningApps = new Vector<Application>();
+	private EventQueue           evQueue     = new EventQueue();
+	private TerminalInputEventer eventer     = new TerminalInputEventer();
+	private EscapeDetector       detector    = new EscapeDetector();
+	private FactoryLocator       appList     = new FactoryLocator();
 	private RootApplication      rootApplication;
 	private Application          currentApp;
 	private RootPlane<?>         activePlane;
@@ -220,9 +254,13 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	private WindowPlane          windowPlane;
 	private MenuPlane            menuPlane;
 	private Curses               crs;
-	private UIThread             intThread;
-	private RedrawThread         rdThread; 
-	private boolean suspended;
+	private Terminal             terminal;
+	private EventDispatcher      dispatcher;
+	private OutputDriver         output;
+	private InputDriver          input;
+	private Thread               caller;
+	private AtomicBoolean        isstopping = new AtomicBoolean(false);
+	
 	
 	public WindowManager(Curses c) throws IOException{
 		this(c,null);
@@ -230,6 +268,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	
 	public WindowManager(Curses c, RootApplication root) throws IOException{
 		crs = c;
+		terminal = crs.getTerminal();
 		menuPlane       = new MenuPlane(this,crs,new Position(0, 0),new Dimension(crs.lines(), crs.cols()));
 		windowPlane     = new WindowPlane(this,crs,new Position(0,0),new Dimension(crs.lines(),crs.cols()));
 		
@@ -238,7 +277,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 		
 		rootApplication = root;
 		activePlane     = windowPlane;
-		termInput       = crs.getTerminal().getInputStream();
+		termInput       = terminal.getInputStream();
 		
 		crs.wantsResizedNotification(this);
 	}	
@@ -318,72 +357,59 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			return 80;
 		}
 	}
-	
-	
-	private void suspendRead(){
-		crs.getTerminal().wakeup();
-	}
-	
-	private void suspendRedraw(){
-		rdThread.wakeup();
-	}
+
 	
 	public void suspend(){
-		
-		synchronized(this){
-			suspended = true;
-		}
-		
-		suspendRedraw();
-		suspendRead();
-		
+
 		try {
-			Thread.sleep(200);
-		} catch (InterruptedException e){
-		}
-		
-		try {
+			
+			input.pause();
+			terminal.wakeup();
+			terminal.acquireRead();
+			
+			
+			output.pause();
+			terminal.wakeup();
+			terminal.acquireWrite();
+			
 			crs.rmcup();
 			crs.clear();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
+		}catch (InterruptedException e){
 		}
+		
 	}
 	
-	private void resumeRead(){
-		synchronized(readLock){
-			readLock.notify();
-		}
+	private void initScreen() throws IOException{
+		crs.smcup();
+		crs.invalidateDoubleBuffering();
+		crs.showWindow(windowPlane);
 	}
-	
-	private void resumeRedraw(){
-		synchronized(rdThread){
-			rdThread.notify();
-		}
-	}
-	
+		
 	public void resume(){
 		
-		synchronized(this){
-			suspended = false;
-		}
-		
 		try {
-			crs.smcup();
-			crs.invalidateDoubleBuffering();
-			crs.showWindow(windowPlane);
-		} catch (IOException e) {
-			e.printStackTrace();
+			
+			initScreen();
+		
+			terminal.releaseRead();
+			terminal.releaseWrite();
+			
+			output.unpause();
+			input.unpause();
+		
+		} catch (InterruptedException e){
+		} catch (IOException e){
+			
 		}
 		
-		resumeRead();
-		
-		resumeRedraw();
 		
 	}
 	
 	public ZModem createZModem(){
-		return new ZModem(crs.getTerminal().getInputStream(),crs.getTerminal().getOutputStream());
+		return new ZModem(terminal.getInputStream(),terminal.getOutputStream());
 	}
 	
 	/**
@@ -493,7 +519,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			}
 			
 			if(r!=null)
-				rdThread.addRect(r);
+				output.addRect(r);
 
 			return;
 		}
@@ -547,77 +573,62 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 		 *		stop();
 		 */
 	}
-	public synchronized void stop(){
+	public void stop(){
+
+		if(!isstopping.compareAndSet(false, true))
+			return;
 		
-		rdThread.stopMe();
-		intThread.stopMe();
-		running = false;
-		
-		postEvent(new StopUIThread(this));
-		
-		rdThread.wakeup();
-		
-		try{
+		try {
+			
+			postEvent(new StopUIThread(this));
+			
+			input.stopAsap();
+			output.stopAsap();
+			
+			terminal.wakeup();
+			terminal.acquireRead();			
+			
+			terminal.wakeup();
+			terminal.acquireWrite();
+
 			crs.rmcup();
 			crs.clear();
-		}catch(IOException ioe){
+	
+			terminal.releaseRead();
+			terminal.releaseWrite();
+	
+			terminal.closeChannel();
+			
+		}catch (IOException e) {
+		}catch (InterruptedException e1) {
+		}finally{
+			LockSupport.unpark(this.caller);
 		}
-
-		try {
-			crs.getTerminal().closeChannel();
-		} catch (IOException e) {
-		}
-
 	}
-	public synchronized boolean isRunning(){
-		return running;
-	}
+
+	
 	private synchronized void begin(Thread caller){
-		running = true;
-		intThread   = new UIThread(caller.getThreadGroup());      
-		rdThread    = new RedrawThread(caller.getThreadGroup());  
+		this.caller = caller;
+		dispatcher  = new EventDispatcher(caller.getThreadGroup());      
+		output      = new OutputDriver(caller.getThreadGroup());  
+		input       = new InputDriver(caller.getThreadGroup());
 	}
+	
 	public void start() throws IOException{
-		if(isRunning()) return;
+		if(this.caller!=null)
+			return;
 		
 		begin(Thread.currentThread());
-		crs.smcup();
-		crs.showWindow(windowPlane);
-		intThread.start();
-		rdThread.start();
-		rootApplication.begin(this);
-		try{
-			while(isRunning()){
-				try{
-					
-					int b = termInput.read();
-					if(b==0xffffffff)
-						break;
-					
-					eventer.put(b);
-				
-				}catch(InterruptIOException exp){
-					
-					//exp.printStackTrace();
-					
-					synchronized(readLock){					
-						if(suspended){
-							try{
-								readLock.wait();
-							}catch(InterruptedException ie){
-								ie.printStackTrace();
-							}
-						}
-					}
-					
-				}
-			}
-		}catch(ClosedChannelException cee){
-			cee.printStackTrace();
-		}
 		
-		if(isRunning())
-			stop();
+		initScreen();
+		
+		dispatcher.start();
+		input.start();
+		output.start();
+		
+		rootApplication.begin(this);
+		
+		LockSupport.park();
 	}
 	
 	public ColorChar getTopCharAt(Position p){
@@ -656,7 +667,8 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	}
 
 	public void receiveEvent(Event e) {
-		if(isRunning()) postEvent(e);		
+		if(this.caller!=null)
+			postEvent(e);		
 	}
 
 	public void releaseWindow(Window w) {

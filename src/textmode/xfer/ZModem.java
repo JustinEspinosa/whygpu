@@ -33,7 +33,6 @@ public class ZModem {
 		netOs.flush();
 		
 		
-		
 		try {
 			Thread.sleep(3000);
 		} catch (InterruptedException e1) {

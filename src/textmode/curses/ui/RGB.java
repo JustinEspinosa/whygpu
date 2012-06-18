@@ -8,7 +8,7 @@ public class RGB extends Vector3{
 	private int index;
 	private static int chop(int c){
 		if(c<0) return 0;
-		if(c>255) return 255;
+		if(c>254) return 254;
 		return c;
 	}
 	
@@ -31,7 +31,7 @@ public class RGB extends Vector3{
 	}
 
 	public RGB(int packedRGB){
-		this(Arrays.fromInt(packedRGB, Endianness.Little));
+		this(Arrays.fromInt(packedRGB, Endianness.Big));
 	}
 	
 	public RGB(int[] rgbArray){

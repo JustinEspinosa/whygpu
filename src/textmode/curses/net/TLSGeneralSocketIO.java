@@ -14,7 +14,6 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
 
-import textmode.curses.term.io.InterruptIOException;
 import textmode.curses.term.io.NoWaitIOLock;
 
 
@@ -251,21 +250,34 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	private int doEncryptAndWrite(ByteBuffer out) throws IOException{
 		
 		outNetData.clear();
-		
+			
 		SSLEngineResult status = sslEngine.wrap(out, outNetData);
-
-		
+	
+			
 		if(canLog())
 			logger.fine("Status after write: "+status);
-		
+			
 		outNetData.flip();
-		
+			
 		int written = outNetData.remaining();
-		
-		while(outNetData.hasRemaining()){
-			getSocket().write(outNetData);
-			if( outNetData.hasRemaining() )
-				nwLock.writeWait();
+			
+		try{
+			while(outNetData.hasRemaining()){
+				
+				boolean done = false;
+				while(!done){
+					try{
+						nwLock.wantWrite();
+						done = true;
+					}catch(InterruptedException e){
+					}
+				}
+				
+				getSocket().write(outNetData);
+			}
+			
+		}finally{
+			nwLock.doneWrite();
 		}
 		
 		return written;
@@ -299,7 +311,7 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	}
 	
 	private SSLEngineResult doReadAndDecrypt() throws IOException{
-		int countRead;
+		int countRead = 0;
 		
 		
 		if(inNetData.position()==0){
@@ -307,19 +319,16 @@ public class TLSGeneralSocketIO  extends SocketIO{
 			if(canLog())
 				logger.fine("TLS tries to read from socket");
 			
-			countRead = getSocket().read(inNetData);
-			
-			if(countRead<1){
-				try{
-					
-					nwLock.readWait();
-					
-				}catch(InterruptIOException nde){
-					inAppData.position(inAppData.limit());
-					throw nde;
-				}
-
+			try{
+				
+				nwLock.wantRead();
+					 
 				countRead = getSocket().read(inNetData);
+				
+			}catch(InterruptedException e){
+				throw new IOException(e);
+			}finally{
+				nwLock.doneRead();
 			}
 			
 			
@@ -355,25 +364,27 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		SSLEngineResult result;
 	
 		inAppData.clear();
-		
-		do{
-			try{
-				result = doReadAndDecrypt();
-			}catch(SSLException e){
-				logger.log(Level.SEVERE, "SSL error while reading:", e);
-				throw e;
-			}
+		try{
+			do{
+				try{
+					result = doReadAndDecrypt();
+				}catch(SSLException e){
+					logger.log(Level.SEVERE, "SSL error while reading:", e);
+					throw e;
+				}
 
-			// Sometimes, TLS Protocol stuff are done and no data is produced: repeat
-			if(result.getStatus() == SSLEngineResult.Status.CLOSED)
-				throw new IOException("SSL Closed.");
+				// Sometimes, TLS Protocol stuff are done and no data is produced: repeat
+				if(result.getStatus() == SSLEngineResult.Status.CLOSED)
+					throw new IOException("SSL Closed.");
 			
-		}while ( continueReading(result) );
+			}while ( continueReading(result) );
 		
-		inAppData.flip();
+		}finally{
+			inAppData.flip();
 		
-		if(canLog())
-			logBufferState(inAppData,"decrypted incomming data");
+			if(canLog())
+				logBufferState(inAppData,"decrypted incomming data");
+		}
 		
 	}
 

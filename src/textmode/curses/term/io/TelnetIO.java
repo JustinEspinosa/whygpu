@@ -226,8 +226,8 @@ public class TelnetIO {
 		if(term==null) return;
 		ByteVector bytes = getLastSubNegotiation(NAWS);
 		if(bytes.size()>=4){
-			short cols = Arrays.toShort(bytes.toArray(0,2), Endianness.Little);
-			short lines = Arrays.toShort(bytes.toArray(2,2), Endianness.Little);
+			short cols = Arrays.toShort(bytes.toArray(0,2), Endianness.Big);
+			short lines = Arrays.toShort(bytes.toArray(2,2), Endianness.Big);
 			term.setCols(cols);
 			term.setLines(lines);
 			term.resized();

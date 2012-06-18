@@ -21,7 +21,7 @@ import textmode.xfer.zm.util.ZModemCharacter;
 
 public class ZMPacketInputStream extends ObjectInputStream<ZMPacket> {
 	
-	private static byte[] _ignored = {0x11,0x13,(byte) 0x91,(byte) 0x93};
+	private static int[] _ignored = {0x11,0x13,0x91,0x93};
 	private InputStream netIs;
 	private CRC dataCRC = new CRC(Type.CRC16);
 	private boolean gotFIN = false;
@@ -31,14 +31,14 @@ public class ZMPacketInputStream extends ObjectInputStream<ZMPacket> {
 		netIs = is;
 	}
 	
-	private boolean ignored(byte b){
+	private boolean ignored(int b){
 		boolean r = (Arrays.binarySearch(_ignored, b) >= 0);
 		return r;
 	}
 	
 	private byte implRead() throws IOException{
 		int n;
-		while(ignored((byte)(n = netIs.read())));
+		while(ignored(n = netIs.read()));
 		return (byte)n;
 	}
 	

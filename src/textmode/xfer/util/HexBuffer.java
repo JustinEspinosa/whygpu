@@ -162,51 +162,51 @@ public class HexBuffer implements Buffer{
 	}
 
 	public short getShort() {
-		return textmode.xfer.util.Arrays.toShort(new byte[]{get(),get()}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toShort(new byte[]{get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putShort(short value) {
-		return put(textmode.xfer.util.Arrays.fromShort(value, Endianness.Big));
+		return put(textmode.xfer.util.Arrays.fromShort(value, Endianness.Little));
 	}
 
 	public short getShort(int index) {
-		return textmode.xfer.util.Arrays.toShort(new byte[]{get(index),get(index+1)}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toShort(new byte[]{get(index),get(index+1)}, Endianness.Little);
 	}
 
 	public Buffer putShort(int index, short value) {
-		return put(index,textmode.xfer.util.Arrays.fromShort(value, Endianness.Big));
+		return put(index,textmode.xfer.util.Arrays.fromShort(value, Endianness.Little));
 	}
 
 	public int getInt() {
-		return textmode.xfer.util.Arrays.toInt(new byte[]{get(),get(),get(),get()}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toInt(new byte[]{get(),get(),get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putInt(int value) {
-		return put(textmode.xfer.util.Arrays.fromInt(value, Endianness.Big));
+		return put(textmode.xfer.util.Arrays.fromInt(value, Endianness.Little));
 	}
 
 	public int getInt(int index) {
-		return textmode.xfer.util.Arrays.toInt(new byte[]{get(index),get(index+1),get(index+2),get(index+3)}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toInt(new byte[]{get(index),get(index+1),get(index+2),get(index+3)}, Endianness.Little);
 	}
 
 	public Buffer putInt(int index, int value) {
-		return put(index,textmode.xfer.util.Arrays.fromInt(value, Endianness.Big));
+		return put(index,textmode.xfer.util.Arrays.fromInt(value, Endianness.Little));
 	}
 
 	public long getLong() {
-		return textmode.xfer.util.Arrays.toLong(new byte[]{get(),get(),get(),get(),get(),get(),get(),get()}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toLong(new byte[]{get(),get(),get(),get(),get(),get(),get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putLong(long value) {
-		return put(textmode.xfer.util.Arrays.fromLong(value, Endianness.Big));
+		return put(textmode.xfer.util.Arrays.fromLong(value, Endianness.Little));
 	}
 
 	public long getLong(int index) {
-		return textmode.xfer.util.Arrays.toLong(new byte[]{get(index),get(index+1),get(index+2),get(index+3),get(index+4),get(index+5),get(index+6),get(index+7)}, Endianness.Big);
+		return textmode.xfer.util.Arrays.toLong(new byte[]{get(index),get(index+1),get(index+2),get(index+3),get(index+4),get(index+5),get(index+6),get(index+7)}, Endianness.Little);
 	}
 
 	public Buffer putLong(int index, long value) {
-		return put(index,textmode.xfer.util.Arrays.fromLong(value, Endianness.Big));
+		return put(index,textmode.xfer.util.Arrays.fromLong(value, Endianness.Little));
 	}
 
 	public boolean isReadOnly() {

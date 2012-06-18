@@ -1,10 +1,8 @@
 package textmode.curses.ui;
 
 import java.util.Enumeration;
+import java.util.TreeMap;
 import java.util.Vector;
-
-import textmode.curses.term.io.InterruptIOException;
-
 
 
 /**
@@ -17,49 +15,70 @@ import textmode.curses.term.io.InterruptIOException;
  */
 public class RectangleBuffer {
 
-	private Vector<Rectangle> area = new Vector<Rectangle>();
-	private boolean wake = false;
+	private static class LineList extends TreeMap<Integer,Vector<Segment>>{
+
+		private static final long serialVersionUID = 196675993166082098L;
+
+		public boolean put(Segment value) {
+			Integer key = value.getLine();
+			if(get(key)==null)
+				super.put(key, new Vector<Segment>());
+			
+			return get(key).add(value);
+		}
+		
+		@Override
+		public Vector<Segment> get(Object key) {
+			Vector<Segment> s = super.get(key);
+			if(s==null){
+				s = new Vector<Segment>();
+				super.put((Integer)key, s);
+			}
+			return s;
+		}
+	}
+	
+	private LineList area = new LineList();
 	
 	private void reduce(Rectangle r){
 		
-		Enumeration<Rectangle> eR = area.elements();
+		Segment[] slices = Segment.slice(r);
 		
-		while(eR.hasMoreElements()){
-			Rectangle cR = eR.nextElement();
-			if(cR.includes(r)) return;
-		    if(r.includes(cR)){
-		    	area.remove(cR);
-		    	area.add(r);
-		    	return;
-		    }
+		for(Segment seg : slices){
+			Enumeration<Segment> eS = area.get(seg.getLine()).elements();
+			boolean absorbed = false;
+			while(eS.hasMoreElements()){
+				Segment cS = eS.nextElement();
+				if(absorbed = cS.absorb(seg)) 
+					break;
+			}
+			if(!absorbed)
+				area.put(seg);
 		}
-		area.add(r);
+		
 	}
 	
-	public synchronized void wakeup(){
-		wake = true;
-		notify();
-	}
+
 	
 	public synchronized void addToArea(Rectangle r){
 		reduce(r);
-		notify();
 	}
 	
-	public synchronized Rectangle[] getArea() throws InterruptIOException{
-		if(area.isEmpty())
-			try {
-				wait();
-			} catch (InterruptedException e) { e.printStackTrace(); }
+	public synchronized Rectangle[] getArea() {
 		
-		if(wake){
-			wake = false;
-			throw new InterruptIOException();
+		int size=0;
+		for(Vector<Segment> l : area.values() )
+			size += l.size();
+		
+		Rectangle[] arrCpy = new Rectangle[size];
+		int i = 0;
+		for(Vector<Segment> l : area.values() ){
+			for(Segment s : l)
+				arrCpy[i++] = s.toRectangle();
+
+			l.clear();
 		}
-		
-		Rectangle[] arrCpy = new Rectangle[area.size()];
-		area.toArray(arrCpy);
-		area.clear();
+
 		return arrCpy;
 	}
 	

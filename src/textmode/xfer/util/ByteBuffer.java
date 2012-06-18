@@ -122,51 +122,51 @@ public class ByteBuffer implements Buffer {
 	}
 
 	public short getShort() {
-		return Arrays.toShort(new byte[]{get(),get()}, Endianness.Big);
+		return Arrays.toShort(new byte[]{get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putShort(short value) {
-		return put(Arrays.fromShort(value, Endianness.Big));
+		return put(Arrays.fromShort(value, Endianness.Little));
 	}
 
 	public short getShort(int index) {
-		return Arrays.toShort(new byte[]{get(index),get(index+1)}, Endianness.Big);
+		return Arrays.toShort(new byte[]{get(index),get(index+1)}, Endianness.Little);
 	}
 
 	public Buffer putShort(int index, short value) {
-		return put(index,Arrays.fromShort(value, Endianness.Big));
+		return put(index,Arrays.fromShort(value, Endianness.Little));
 	}
 
 	public int getInt() {
-		return Arrays.toInt(new byte[]{get(),get(),get(),get()}, Endianness.Big);
+		return Arrays.toInt(new byte[]{get(),get(),get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putInt(int value) {
-		return put(Arrays.fromInt(value, Endianness.Big));
+		return put(Arrays.fromInt(value, Endianness.Little));
 	}
 
 	public int getInt(int index) {
-		return Arrays.toInt(new byte[]{get(index),get(index+1),get(index+2),get(index+3)}, Endianness.Big);
+		return Arrays.toInt(new byte[]{get(index),get(index+1),get(index+2),get(index+3)}, Endianness.Little);
 	}
 
 	public Buffer putInt(int index, int value) {
-		return put(index,Arrays.fromInt(value, Endianness.Big));
+		return put(index,Arrays.fromInt(value, Endianness.Little));
 	}
 
 	public long getLong() {
-		return Arrays.toLong(new byte[]{get(),get(),get(),get(),get(),get(),get(),get()}, Endianness.Big);
+		return Arrays.toLong(new byte[]{get(),get(),get(),get(),get(),get(),get(),get()}, Endianness.Little);
 	}
 
 	public Buffer putLong(long value) {
-		return put(Arrays.fromLong(value, Endianness.Big));
+		return put(Arrays.fromLong(value, Endianness.Little));
 	}
 
 	public long getLong(int index) {
-		return Arrays.toLong(new byte[]{get(index),get(index+1),get(index+2),get(index+3),get(index+4),get(index+5),get(index+6),get(index+7)}, Endianness.Big);
+		return Arrays.toLong(new byte[]{get(index),get(index+1),get(index+2),get(index+3),get(index+4),get(index+5),get(index+6),get(index+7)}, Endianness.Little);
 	}
 
 	public Buffer putLong(int index, long value) {
-		return put(index,Arrays.fromLong(value, Endianness.Big));
+		return put(index,Arrays.fromLong(value, Endianness.Little));
 	}
 
 	public boolean isReadOnly() {

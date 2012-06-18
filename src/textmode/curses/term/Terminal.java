@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.InterruptibleChannel;
 import java.util.ArrayList;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import textmode.curses.TerminalResizedReceiver;
 import textmode.curses.net.SocketIO;
@@ -26,6 +28,10 @@ public class Terminal {
 	}
 
 
+	private Lock readLock  = new ReentrantLock(true);
+	private Lock writeLock = new ReentrantLock(true);
+
+	
 	private int cols;
 	private int lines;
 	private NoWaitIOLock nwLock = null;
@@ -54,6 +60,23 @@ public class Terminal {
 		getFlags();
 	}
 	
+	public  void acquireRead() throws InterruptedException{
+		readLock.lock();
+	}
+	
+	public  void acquireWrite() throws InterruptedException{
+		writeLock.lock();
+	}
+	
+	public  void releaseRead() throws InterruptedException{
+		readLock.unlock();
+	}
+	
+	public  void releaseWrite() throws InterruptedException{
+		writeLock.unlock();
+	}
+	
+	
 	public void wakeup(){
 		if(nwLock != null)
 			nwLock.wakeup();
@@ -67,6 +90,7 @@ public class Terminal {
 	public final void setLines(int v){
 		lines = v;
 	}
+	
 	public final void setCols(int v){
 		cols = v;
 	}

@@ -6,7 +6,7 @@ package textmode.xfer.util;
  *
  */
 public class Arrays {
-	public enum Endianness{Big,Little;}
+	public enum Endianness{Little,Big;}
     public static byte[] copyOf(byte[] original, int newLength) {
         byte[] copy = new byte[newLength];
         System.arraycopy(original, 0, copy, 0,
@@ -22,11 +22,11 @@ public class Arrays {
 		long n = 0;
 		int offset=0,increment=1;
 		switch(endian){
-		case Big:
+		case Little:
 			increment = 1;
 			offset    = 0;
 			break;
-		case Little:
+		case Big:
 			increment = -1;
 			offset    = size-1;
 			break;
@@ -58,11 +58,11 @@ public class Arrays {
 		int offset=0,increment=1;
 	
 		switch(endian){
-		case Little:
+		case Big:
 			increment = -1;
 			offset    = size-1;
 			break;
-		case Big:
+		case Little:
 			increment = 1;
 			offset    = 0;
 			break;
