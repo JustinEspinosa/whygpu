@@ -42,6 +42,9 @@ public class ChannelOutputStream extends OutputStream {
 				channel.write(buff);
 			}
 
+		}catch(IOException e){
+			nwLock.stopWriting();
+			throw e;
 		}finally{
 			nwLock.doneWrite();
 			buff.clear();

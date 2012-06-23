@@ -35,10 +35,14 @@ public class ChannelInputStream extends InputStream {
 			nwLock.wantRead();
 			
 			num=channel.read(b);
-			if(num<0)
+			if(num<=0){
+				if(num==-1)
+					nwLock.stopReading();
 				return num;
+			}
 					
 			b.flip();
+			
 			return (0xff&(int)b.get());
 			
 		}catch(InterruptedException e){

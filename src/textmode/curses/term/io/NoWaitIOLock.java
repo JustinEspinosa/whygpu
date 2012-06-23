@@ -44,6 +44,15 @@ public class NoWaitIOLock {
 		return channel;
 	}
 	
+	public void stopReading(){
+		readLock.stopSelecting();
+	}
+
+	public void stopWriting(){
+		writeLock.stopSelecting();
+	}
+
+	
 	public void stopSelecting(){
 		readLock.stopSelecting();
 		writeLock.stopSelecting();

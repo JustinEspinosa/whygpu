@@ -296,5 +296,9 @@ public class Curses{
 		cursCol  = -1;
 		buffer = new CharacterScreenBuffer(new Dimension(lines, cols));
 	}
+	
+	public void flush() throws IOException{
+		term.flush();
+	}
 
 }

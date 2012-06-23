@@ -375,6 +375,8 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			crs.rmcup();
 			crs.clear();
 			
+			crs.flush();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}catch (InterruptedException e){
@@ -386,6 +388,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 		crs.smcup();
 		crs.invalidateDoubleBuffering();
 		crs.showWindow(windowPlane);
+		crs.flush();
 	}
 		
 	public void resume(){
@@ -593,6 +596,8 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 
 			crs.rmcup();
 			crs.clear();
+			
+			crs.flush();
 	
 			terminal.releaseRead();
 			terminal.releaseWrite();
