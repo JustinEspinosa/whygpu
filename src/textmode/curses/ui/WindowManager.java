@@ -628,7 +628,8 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 		
 		rootApplication.begin(this);
 		
-		LockSupport.park();
+		while(input.isRunning())
+			LockSupport.park();
 	}
 	
 	public ColorChar getTopCharAt(Position p){

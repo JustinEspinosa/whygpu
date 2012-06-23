@@ -83,6 +83,7 @@ public class Screen extends Thread{
 		try {
 			winMan.start();
 		} catch (IOException e) { 
+			e.printStackTrace();
 		}finally{
 			winMan.stop();
 		}

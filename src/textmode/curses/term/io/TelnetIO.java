@@ -70,6 +70,10 @@ public class TelnetIO {
 		os.write(c);
 		os.flush();
 	}
+	
+	protected static void writeOption(OutputStream os,byte o) throws IOException{
+		writeSequence(os,IAC,o);
+	}
 
 	protected static void writeOption(OutputStream os,byte o,byte a) throws IOException{
 		writeSequence(os,IAC,a,o);
@@ -256,6 +260,7 @@ public class TelnetIO {
 		return gotit;
 	}
 	
+	
 	protected boolean readCommand() throws IOException{
 		byte c = (byte)is.read();
 		
@@ -310,6 +315,17 @@ public class TelnetIO {
 		lastActionSent[option] = action;
 	}
 	
+	protected void nop() throws IOException{		
+		writeOption(os, NOP);
+
+		if(canLog())
+			logger.fine("Telnet NOP written.");
+	}
+	
+	public void keepAlive() throws IOException{
+		nop();
+	}
+	
 	/* I want genericsings */
 	@SuppressWarnings("unchecked")
 	protected void optionNegotiation(byte option,ByteVector negotiationString) throws IOException{
@@ -360,7 +376,10 @@ public class TelnetIO {
 		return singleOption(DONT,option);
 	}
 
-	
+	public void close() throws IOException{
+		is.close();
+		os.close();
+	}
 	
 	//Helpers to get terminal type
 	public void negotiateTerminal() throws IOException{

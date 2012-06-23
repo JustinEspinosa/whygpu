@@ -9,6 +9,7 @@ public class RedrawEvent extends Event {
 		super(src);
 		area = r;
 	}
+	
 	public Rectangle getArea(){
 		return area;
 	}

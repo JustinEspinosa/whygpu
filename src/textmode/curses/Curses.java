@@ -145,6 +145,7 @@ public class Curses{
 	//fill a text rectangle of defined characters + fore|back color as fast as possible
 	public synchronized void drawColorCharArray(ColorChar[][] contents, Position from) throws IOException{
 		ColorStringBuilder bld = new ColorStringBuilder();
+		boolean outputed = false;
 
 		for(int line=0;line<contents.length;line++){
 			
@@ -154,10 +155,14 @@ public class Curses{
 			}
 			
 			if(bld.length()>0)
-				doubleBufferPrintAt(bld.toColorString(),line + from.getLine(), from.getCol());
-			//reset
+				if(doubleBufferPrintAt(bld.toColorString(),line + from.getLine(), from.getCol(),false))
+					outputed = true;
+			
 			bld = new ColorStringBuilder();
 		}
+		
+		if(outputed)
+			term.flush();
 		
 	}
 	
@@ -211,6 +216,7 @@ public class Curses{
 		term.writeCommand("ts", 1);
 		for(int i=0;i<text.length();i++)
 			writeChar(text.charAt(i));
+		term.flush();
 		term.writeCommand("fs", 1);
 	}
 	
@@ -241,10 +247,11 @@ public class Curses{
 				
 	}
 	
-	public synchronized void doubleBufferPrintAt(ColorString text,int line,int col) throws IOException{
+	public synchronized boolean doubleBufferPrintAt(ColorString text,int line,int col,boolean flush) throws IOException{
 		
 		ColorPair lastColor   = new ColorPair(BaseColor.Undefined, BaseColor.Undefined);
 		boolean   changeColor = false;
+		boolean   outputed    = false;
 				
 		for(int i=0;i<text.length();i++){
 			ColorChar cchar = text.charAt(i);
@@ -261,11 +268,15 @@ public class Curses{
 					}
 					cursorAt(line, col);
 					writeChar(cchar.getChr());
+					outputed = true;
 				}
 			}
 			col++;
 		}
+		if(flush)
+			term.flush();
 		
+		return outputed;
 	}
 	
 	public void wantsResizedNotification(TerminalResizedReceiver rcv){
@@ -277,6 +288,7 @@ public class Curses{
 		byte[] chrs = text.getBytes();
 		for(int i=0;i<chrs.length;i++)
 			writeChar((char)chrs[i]);
+		term.flush();
 	}
 
 	public synchronized void resizeBuffer(int cols, int lines) {

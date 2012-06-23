@@ -118,14 +118,18 @@ public class MenuItem extends Component {
 		closeTarget();
 		super.lostFocus();
 	}
-	//Disallow border, takes too much place
+	//Deny the use border, takes too much place
 	@Override
 	public void setBorder(boolean border){
 	}
 
 	@Override
 	protected synchronized void redraw() {
-		if(focused) setColor(colors().getAlt(getClass()));
+		if(focused) 
+			setColor(colors().getAlt(getClass()));
+		else
+			setColor(colors().get(getClass()));
+		
 		update();
 	}
 }

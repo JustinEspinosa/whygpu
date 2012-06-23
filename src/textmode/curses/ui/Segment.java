@@ -40,10 +40,19 @@ public class Segment {
 		if(!pos.sameLine(s.pos))
 			return false;
 		
-		if(  s.pos.getCol() + s.length >= ( pos.getCol()-1)  
-		   &&  pos.getCol() +   length >= (s.pos.getCol()-1) ){
-			pos = pos.withNewCol(Math.min(pos.getCol(), s.pos.getCol()));
-			length = Math.max(s.pos.getCol() + s.length,  pos.getCol() +   length) - pos.getCol();
+
+		int sLeft  = s.pos.getCol();
+		int sRight = sLeft + s.length;
+		int left   = pos.getCol();
+		int right  = left + length;
+		
+		if(  sRight >= left &&  right >= sLeft ){
+			
+			int newLeft =  Math.min(sLeft,left);
+			int newRight = Math.max(sRight,right);
+			
+			pos    = pos.withNewCol(newLeft);
+			length = newRight - newLeft;
 			
 		}
 		

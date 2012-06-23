@@ -4,7 +4,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,78 +31,38 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	
 	private class TLSOutputStream extends OutputStream{
 		
-		private class Flusher extends Thread{
-			public void run() {
-				
-				try{
-					sleep(70);
-				}catch(InterruptedException e){					
-				}
-				
-				
-				try{	
-					implFlush2();
-				}catch (IOException e) {
-					logger.log(Level.SEVERE,"could not flush",e);
-				}catch (Exception e) {
-					logger.log(Level.SEVERE,"Uncaught on flush",e);
-				}
-
-			};
-		}
-
-		private static final int MinFree = 512;
+		private Lock lock = new ReentrantLock();
 		
-		private Thread delay = null;
+		private void implFlush() throws IOException{
+			outAppData.flip();
+			encryptAndWrite(outAppData);
+			outAppData.clear();
+		}
 
-		private void implFlush2() throws IOException{
-			synchronized(outAppData){
-				outAppData.flip();
-				encryptAndWrite(outAppData);
-				outAppData.clear();
-			}
-		}
-		
-		private void implFlush() {
-			
-			if(delay==null){
-				delay = new Flusher();
-				delay.start();
-			}else{
-				synchronized(delay){
-					if(!delay.isAlive()){
-						delay = new Flusher();
-						delay.start();
-					}
-				}
-			}
-			
-			if(outAppData.position()>=outAppData.capacity()-MinFree){
-				synchronized(delay){
-					delay.interrupt();
-					try {
-						delay.join();
-					} catch (InterruptedException e) {}
-				}
-				delay=null;
-			}
-			
-		}
+
 		@Override
-		public synchronized void write(int b) throws IOException {
-			boolean forceFlush = false;
+		public  void write(int b) throws IOException {
 			
-			synchronized(outAppData){
+			try{
+				lock.lock();
+			
 				outAppData.put((byte)b);
-				forceFlush = (outAppData.position()>=outAppData.capacity()-MinFree);
+
+			}finally{
+				lock.unlock();
 			}
-			
-			if(forceFlush) implFlush();
 		}
 		
 		@Override
-		public synchronized void flush() throws IOException {
-			implFlush();
+		public  void flush() throws IOException {
+			try{
+				lock.lock();
+
+				implFlush();
+				
+			}finally{
+				lock.unlock();
+			}
 		}
 	}
 	
@@ -136,6 +100,9 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	private boolean logging = true;
 	private Logger logger;
 	
+	private WritableByteChannel channelOut;
+	private ReadableByteChannel channelIn;
+	
 	public TLSGeneralSocketIO(SocketChannel sock, SSLContext ctx) throws IOException{
 		this(null,sock,ctx);	
 	}
@@ -151,8 +118,19 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		nwLock = new NoWaitIOLock(sock);
 		nwLock.start();
 		
+		if(nwLock.channel() instanceof WritableByteChannel)
+			channelOut = (WritableByteChannel)nwLock.channel();
+		else
+			logger.fine("Is not writablebytechannel");
+
+		if(nwLock.channel() instanceof ReadableByteChannel)
+			channelIn = (ReadableByteChannel)nwLock.channel();
+		else
+			logger.fine("Is not readablebytechannel");
+		
 		sslEngine  = ctx.createSSLEngine();
 		sslEngine.setUseClientMode(false);
+		//sslEngine.setEnabledCipherSuites(cipherSuites);
 		
 		SSLSession session = sslEngine.getSession();
 		
@@ -208,6 +186,9 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		
 		while (hsStatus != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING ) {
 
+			if(canLog())
+				logger.fine("TLS Handshake status:"+hsStatus);
+			
 			switch (hsStatus) {
 			
 			case FINISHED:
@@ -248,6 +229,8 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	}
 
 	private int doEncryptAndWrite(ByteBuffer out) throws IOException{
+		if(canLog())
+			logBufferState(out,"outAppData");
 		
 		outNetData.clear();
 			
@@ -255,11 +238,11 @@ public class TLSGeneralSocketIO  extends SocketIO{
 	
 			
 		if(canLog())
-			logger.fine("Status after write: "+status);
+			logger.fine("Status after wrap: "+status);
 			
 		outNetData.flip();
 			
-		int written = outNetData.remaining();
+		int written = 0;
 			
 		try{
 			while(outNetData.hasRemaining()){
@@ -272,13 +255,19 @@ public class TLSGeneralSocketIO  extends SocketIO{
 					}catch(InterruptedException e){
 					}
 				}
+					
+				written += channelOut.write(outNetData);
 				
-				getSocket().write(outNetData);
+				if(canLog())
+					logger.fine("Wrote "+written+", TCP Buffer is: "+ getSocket().socket().getSendBufferSize());
+			
+				
 			}
 			
 		}finally{
 			nwLock.doneWrite();
 		}
+		
 		
 		return written;
 		
@@ -323,7 +312,7 @@ public class TLSGeneralSocketIO  extends SocketIO{
 				
 				nwLock.wantRead();
 					 
-				countRead = getSocket().read(inNetData);
+				countRead = channelIn.read(inNetData);
 				
 			}catch(InterruptedException e){
 				throw new IOException(e);
@@ -373,17 +362,17 @@ public class TLSGeneralSocketIO  extends SocketIO{
 					throw e;
 				}
 
-				// Sometimes, TLS Protocol stuff are done and no data is produced: repeat
 				if(result.getStatus() == SSLEngineResult.Status.CLOSED)
 					throw new IOException("SSL Closed.");
-			
+				
+			// Sometimes, TLS Protocol stuff are done and no data is produced: repeat
 			}while ( continueReading(result) );
 		
 		}finally{
 			inAppData.flip();
 		
 			if(canLog())
-				logBufferState(inAppData,"decrypted incomming data");
+				logBufferState(inAppData,"inAppData");
 		}
 		
 	}

@@ -17,6 +17,12 @@ import textmode.curses.term.io.NoWaitIOLock;
 import textmode.curses.term.termcap.TermType;
 
 
+/**
+ * Terminal will not flush. please do it
+ * 
+ * @author justin
+ *
+ */
 
 public class Terminal {
 	
@@ -39,7 +45,6 @@ public class Terminal {
 	private InputStream  in;
 	private OutputStream out;
 	private InterruptibleChannel channel = null;
-	@SuppressWarnings("unused")
 	private int PC = 0;
 	private boolean ansiColors = false;
 	private int numColors = 1;
@@ -165,7 +170,6 @@ public class Terminal {
 		for(int i=0;i<wroffset;i++)
 			out.write( wrbuffer[i] );
 		
-		out.flush();
 		wroffset = 0;
 	}
 	
@@ -221,12 +225,12 @@ public class Terminal {
 		/* TODO: take the stream type into account: only pad on serial
 		 * speed under the value in the corresponding capacity. do not pad over
 		 * IP or locally.
-		 *
+		 */
 		long start = System.nanoTime();
 		while( (System.nanoTime()-start)<time )
 			out.write(PC);
 		
-		out.flush();*/
+		/*out.flush();*/
 	}
 	
 	
@@ -291,6 +295,7 @@ public class Terminal {
 			String fCmd       = fmt.format(params);
 
 			writeString(fCmd);
+			//System.out.println("Writing escape: "+fCmd+" for "+cmd);
 			
 			goWrite();
 			
@@ -317,9 +322,12 @@ public class Terminal {
 		return ansiColors;
 	}
 	
+	public void flush() throws IOException{
+		out.flush();
+	}
+	
 	public void writeChar(char c) throws IOException{
 		out.write((int)c);
-		out.flush();
 	}
 	public char getChar() throws IOException{
 		
