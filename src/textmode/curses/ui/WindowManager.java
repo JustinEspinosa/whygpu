@@ -41,6 +41,16 @@ import textmode.xfer.ZModem;
 
 public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	
+	private final class EventPoster extends Thread{
+		private Event event;
+		public EventPoster(Event e){
+			event = e;
+		}
+		public void run(){
+			evQueue.put(event);
+		}
+	}
+	
 	private final class TerminalInputEventer{
 		private Vector<Integer> history = new Vector<Integer>();
 		private TerminalInputEventer(){}
@@ -669,7 +679,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 	}
 	
 	public void postEvent(Event e){
-		evQueue.put(e);
+		(new EventPoster(e)).start();
 	}
 
 	public void receiveEvent(Event e) {

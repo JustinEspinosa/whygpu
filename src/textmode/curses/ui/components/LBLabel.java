@@ -19,7 +19,7 @@ public class LBLabel extends Label{
 	private void formatText(){
 		int cols = getSize().getCols();
 		
-		if(fullText.length() > cols)
+		if(fullText.length() > cols && cols>3)
 			setText(fullText.substring(0,cols-3)+"...");
 		else
 			setText(fullText);

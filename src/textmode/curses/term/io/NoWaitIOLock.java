@@ -6,8 +6,8 @@ import java.nio.channels.SelectionKey;
 
 public class NoWaitIOLock {
 	
-	private static OperationLock readLock;
-	private static OperationLock writeLock;
+	private OperationLock readLock;
+	private OperationLock writeLock;
 	
 	private SelectableChannel channel;
 	
