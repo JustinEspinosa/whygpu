@@ -20,6 +20,7 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLEngineResult.Status;
 
 import textmode.curses.term.io.NoWaitIOLock;
+import textmode.util.LegacyJavaHelper;
 
 
 /**
@@ -317,7 +318,7 @@ public class TLSGeneralSocketIO  extends SocketIO{
 				countRead = channelIn.read(inNetData);
 				
 			}catch(InterruptedException e){
-				throw new IOException(e);
+				throw LegacyJavaHelper.throwWithCause(new IOException(),e);
 			}finally{
 				nwLock.doneRead();
 			}

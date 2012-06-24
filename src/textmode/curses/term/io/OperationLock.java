@@ -12,6 +12,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import textmode.util.LegacyJavaHelper;
+
 public class OperationLock  {
 	
 	
@@ -34,14 +36,13 @@ public class OperationLock  {
 		selector = channel.provider().openSelector();
 		channel.register(selector, op);
 	}
-	
     
 	public void wantDo() throws InterruptedException, IOException{
 		try{
 			Thread th = Thread.currentThread();
 			lock.lock();
 			if(!selector.isOpen())
-				throw new IOException(new ClosedSelectorException());
+				throw LegacyJavaHelper.throwWithCause(new IOException(),new ClosedSelectorException());
 				
 			accessors.add(th);
 					
