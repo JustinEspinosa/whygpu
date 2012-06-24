@@ -147,13 +147,15 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 
 					pauseIfNeeded();
 
-					terminal.acquireRead();
+					//terminal.acquireRead();
 
 					if(isRunning()){		
 						try{
 							int b = termInput.read();						
-							if(b == 0xffffffff)
+							if(b == 0xffffffff){
+								termInput.close();
 								throw new IOException("end of stream");
+							}
 									
 							eventer.put(b);
 						}catch(IOException e){
@@ -162,7 +164,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 						}
 					}
 
-					terminal.releaseRead();
+					//terminal.releaseRead();
 
 				}
 					
@@ -196,17 +198,21 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 					pauseIfNeeded();
 					
 					sleep(50);
+					
+					pauseIfNeeded();
+					
 					Rectangle[] rArray = buffer.getArea();
 					
-
-					terminal.acquireWrite();
+					pauseIfNeeded();
+					
+					//terminal.acquireWrite();
 					
 					if(isRunning()){
 						for(Rectangle r : rArray)
 							redraw(r);
 					}
 					
-					terminal.releaseWrite();
+					//terminal.releaseWrite();
 					
 				}
 				
@@ -375,12 +381,12 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			
 			input.pause();
 			terminal.wakeup();
-			terminal.acquireRead();
+			//terminal.acquireRead();
 			
 			
 			output.pause();
 			terminal.wakeup();
-			terminal.acquireWrite();
+			//terminal.acquireWrite();
 			
 			crs.rmcup();
 			crs.clear();
@@ -389,7 +395,7 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			
 		} catch (IOException e) {
 			e.printStackTrace();
-		}catch (InterruptedException e){
+		//}catch (InterruptedException e){
 		}
 		
 	}
@@ -407,13 +413,13 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			
 			initScreen();
 		
-			terminal.releaseRead();
-			terminal.releaseWrite();
+			//terminal.releaseRead();
+			//terminal.releaseWrite();
 			
 			output.unpause();
 			input.unpause();
 		
-		} catch (InterruptedException e){
+		//} catch (InterruptedException e){
 		} catch (IOException e){
 			
 		}
@@ -599,23 +605,24 @@ public class WindowManager implements EventReceiver, TerminalResizedReceiver {
 			output.stopAsap();
 			
 			terminal.wakeup();
-			terminal.acquireRead();			
+			//terminal.acquireRead();			
 			
 			terminal.wakeup();
-			terminal.acquireWrite();
+			//terminal.acquireWrite();
 
 			crs.rmcup();
 			crs.clear();
+			crs.cnorm();
 			
 			crs.flush();
 	
-			terminal.releaseRead();
-			terminal.releaseWrite();
+			//terminal.releaseRead();
+			//terminal.releaseWrite();
 	
 			terminal.closeChannel();
 			
 		}catch (IOException e) {
-		}catch (InterruptedException e1) {
+		//}catch (InterruptedException e1) {
 		}finally{
 			LockSupport.unpark(this.caller);
 		}

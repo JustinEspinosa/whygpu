@@ -17,6 +17,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLEngineResult.Status;
 
 import textmode.curses.term.io.NoWaitIOLock;
 
@@ -116,7 +117,6 @@ public class TLSGeneralSocketIO  extends SocketIO{
 		tlsOS = new TLSOutputStream();
 		
 		nwLock = new NoWaitIOLock(sock);
-		nwLock.start();
 		
 		if(nwLock.channel() instanceof WritableByteChannel)
 			channelOut = (WritableByteChannel)nwLock.channel();
@@ -236,6 +236,8 @@ public class TLSGeneralSocketIO  extends SocketIO{
 			
 		SSLEngineResult status = sslEngine.wrap(out, outNetData);
 	
+		if(status.getStatus() == Status.CLOSED)
+			throw new SSLException("SSL Closed");
 			
 		if(canLog())
 			logger.fine("Status after wrap: "+status);

@@ -22,7 +22,6 @@ public class GeneralSocketIO extends SocketIO {
 		nwLock = new NoWaitIOLock(getSocket());
 		is = new ChannelInputStream(nwLock);
 		os = new ChannelOutputStream(nwLock);
-		nwLock.start();
 	}
 	
 	@Override

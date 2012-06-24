@@ -88,6 +88,8 @@ public class TelnetServer {
 				//Create a telnet client to negotiate the options
 				TelnetIO telnet = new TelnetIO(logger,s.getInputStream(), s.getOutputStream());
 			
+				(new TelnetSessionAliveKeeper(telnet, 5000)).start();
+
 				//Everyone suppresses GA 
 				telnet.will(TelnetIO.SUPPRESS_GOAHEAD);
 				telnet.do_(TelnetIO.SUPPRESS_GOAHEAD);
@@ -101,9 +103,7 @@ public class TelnetServer {
 				//The idea in telnet is : if I say i WILL, the client WONT
 				telnet.will(TelnetIO.ECHO);
 				telnet.will(TelnetIO.LINEMODE);
-				
-				(new TelnetSessionAliveKeeper(telnet, 5000)).start();
-		
+						
 				Terminal term = cursesFact.createTerminal(termTypeString,s);
 			
 				//Hook the terminal stream with a new Telnet client to respond to protocol commands.

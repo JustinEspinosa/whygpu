@@ -63,8 +63,4 @@ public class NoWaitIOLock {
 		writeLock.wakeup();
 	}
 	
-	public synchronized void start(){
-		readLock.start();
-		writeLock.start();
-	}
 }

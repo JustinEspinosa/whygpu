@@ -1,40 +1,33 @@
 package textmode.curses.term.io;
 
 import java.io.IOException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.util.Iterator;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class OperationLock extends Thread {
+public class OperationLock  {
 	
-	private static int ThId = 0;
 	
 	private SelectableChannel channel;
 	private Selector selector;
-	
-	private Queue<Thread> accessors   = new ConcurrentLinkedQueue<Thread>();
-	private ConcurrentHashMap<Thread,Boolean>  throwers = new ConcurrentHashMap<Thread,Boolean>();
+	private AtomicBoolean mustThrow = new AtomicBoolean(false);
 
-	private AtomicBoolean running   = new AtomicBoolean(true);
-	private AtomicBoolean ready = new AtomicBoolean(false);
+	private Queue<Thread> accessors   = new ConcurrentLinkedQueue<Thread>();
+
 	private Lock lock = new ReentrantLock();
-	private Condition canSelect = lock.newCondition();
 	private Condition canDo   = lock.newCondition();
 	
 	private int op;
 	
 	
 	public OperationLock(SelectableChannel chan, int op) throws IOException {
-		super("OpLock-"+op+"-"+(++ThId));
-		setDaemon(true);
 		channel = chan;
 		this.op = op;
 
@@ -48,21 +41,26 @@ public class OperationLock extends Thread {
 			Thread th = Thread.currentThread();
 			lock.lock();
 			if(!selector.isOpen())
-				throw new IOException("Selector is closed");
+				throw new IOException(new ClosedSelectorException());
 				
-			if(!accessors.contains(th))
-				accessors.add(th);
-			
-			if(!ready.get())
-				canSelect.signal();
+			accessors.add(th);
 					
-			while ( !(accessors.peek() == th && (ready.get() || throwers.containsKey(th))) )
+			while ( !(accessors.peek() == th) )
 				canDo.await();
+
+			boolean selected=false;			
+			while(!(mustThrow.get() || selected)){
+				selector.select();
+			
+				for( SelectionKey key : selector.selectedKeys())
+					if(key.channel() == channel && key.isValid() && (key.readyOps() & op)!=0)
+						selected  = true;
+			}
 			
 			
-			if(throwers.containsKey(th)){
-				throwers.remove(th);
-				done();
+			if(mustThrow.get()){
+				if(accessors.remove(th))
+					canDo.signal();
 				throw new InterruptedException();
 			}
 		
@@ -73,13 +71,11 @@ public class OperationLock extends Thread {
 	
 	public void done(){
 		try{
+			
 			lock.lock();
 			Thread th = Thread.currentThread();
-			
-			if(accessors.remove(th)){
-				ready.set(false);
-				canSelect.signal();
-			}
+			if(accessors.remove(th))
+				canDo.signal();
 			
 		}finally{
 			lock.unlock();
@@ -91,13 +87,17 @@ public class OperationLock extends Thread {
 	}
 	
 	public void stopSelecting(){
-		running.set(false);
-		wakeup();
+		//wakeup();
 		
+
 		try {
-			lock.lock();
+			mustThrow.set(true);
 			selector.close();
-			canSelect.signal();
+			
+			lock.lock();
+			
+			canDo.signalAll();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}finally{
@@ -105,68 +105,21 @@ public class OperationLock extends Thread {
 		}
 	}
 	
-	public void throwAllAccessors(){
-		for(Thread t: accessors)
-			throwers.put(t, true);
-	}
-	
 	public void wakeup(){
-		
-		throwAllAccessors();
-		selector.wakeup();
-		
+				
 		try{
+			mustThrow.set(true);
+			selector.wakeup();
+			
 			lock.lock();
-
+			
+			mustThrow.set(false);
 			canDo.signal();
 			
 		}finally{
 			lock.unlock();
 		}
 	}
-	
-	@Override
-	public void run() {
-		
-		while(isRunning()){
-			try {
-				
-				lock.lock();
-				
-				while( ready.get() && isRunning() )
-					canSelect.await();
-				
-				if(isRunning()){
-					selector.select();
-					
-					Iterator<SelectionKey> iKeys = selector.selectedKeys().iterator();
-				
-					while(iKeys.hasNext()){
-						SelectionKey key = iKeys.next();
-					
-						if(key.channel() == channel && key.isValid()){
-						
-							if((key.readyOps() & op)!=0){
-								ready.set(true);
-								canDo.signal();
-							}
-						
-						}
-					}
-				}
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}finally{
-				lock.unlock();
-			}
-		}
-	}
 
-	private boolean isRunning() {
-		return running.get() ;
-	}
 	
 }
