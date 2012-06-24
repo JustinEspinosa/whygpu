@@ -241,7 +241,10 @@ public abstract class Component {
 		while(i.hasNext()){
 			Position p = i.next();
 			try{
-				p.relativeTo(from).setAt(r,  getCharAt(p) );
+				ColorChar c = getCharAt(p);
+				if(c==null) c = new ColorChar(' ', getColor());
+						
+				p.relativeTo(from).setAt(r, c);
 			}catch(ArrayIndexOutOfBoundsException e){
 				e.printStackTrace();
 			}

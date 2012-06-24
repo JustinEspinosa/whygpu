@@ -147,7 +147,7 @@ public abstract class Container<T extends Component> extends Component{
 		
 		if(cc == null)
 			cc = myCc;
-			
+		
 		return cc;
 	}
 	protected final void setFocusNoNotify(T c){
