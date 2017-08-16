@@ -61,6 +61,16 @@ public interface Curses {
 
     void cursorAt(int line, int col) throws IOException;
 
+    void cr() throws IOException;
+
+    void sc() throws IOException;
+
+    void rc() throws IOException;
+
+    void cud1() throws IOException;
+
+    void home() throws IOException;
+
     void invalidateDoubleBuffering();
 
     void redrawAllFromDoubleBuffer() throws IOException;

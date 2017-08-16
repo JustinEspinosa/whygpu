@@ -5,6 +5,10 @@ import com.github.justinespinosa.textmode.xfer.util.Arrays;
 import com.github.justinespinosa.textmode.xfer.util.Arrays.Endianness;
 
 public class RGB extends Vector3{
+
+	public final static RGB BLACK = new RGB(0,0,0);
+	public final static RGB WHITE = new RGB(255,255,255);
+
 	private int index;
 	private static int chop(int c){
 		if(c<0) return 0;

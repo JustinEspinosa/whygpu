@@ -26,7 +26,7 @@ public class OccurenceTopList<T> extends SortedList<OccurenceCounter<T>> {
 			addObject(e);
 		getCounter(e).oneMore();
 	}
-	protected final OccurenceCounter<T> getCounter(T e){
+	public final OccurenceCounter<T> getCounter(T e){
 		return objects.get(e);
 	}
 	protected final boolean containsObject(T e){

@@ -8,6 +8,12 @@ public class ColorPair {
 		fg = fcol;
 		bg = bcol;
 	}
+
+	public ColorPair(RGB fcol,RGB bcol, ColorDepth depth){
+		this(ColorDepth.colorFromRGB(fcol, depth), ColorDepth.colorFromRGB(bcol, depth));
+	}
+
+
 	public Color getForeColor(){
 		return fg;
 	}

@@ -129,7 +129,8 @@ public class Dimension implements Iterable<Position>{
 	public Iterator<Position> iterator(Position start){
 		return new PositionIterator(start);
 	}
-	
+
+	@Override
 	public Iterator<Position> iterator(){
 		return new PositionIterator();
 	}

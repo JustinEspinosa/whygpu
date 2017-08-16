@@ -100,8 +100,33 @@ class TermCapCurses extends AbstractCurses {
     }
 
     @Override
+    public void cud1() throws IOException {
+        getTerminal().writeCommand("do", 1);
+    }
+
+    @Override
+    public void home() throws IOException {
+        getTerminal().writeCommand("ho", 1);
+    }
+
+    @Override
     protected void implCursorAt(int line, int col) throws IOException {
         getTerminal().writeCommand("cm", 1, line, col);
+    }
+
+    @Override
+    public void cr() throws IOException {
+        getTerminal().writeCommand("cr", 1);
+    }
+
+    @Override
+    public void sc() throws IOException {
+        getTerminal().writeCommand("sc", 1);
+    }
+
+    @Override
+    public void rc() throws IOException {
+        getTerminal().writeCommand("rc", 1);
     }
 
 

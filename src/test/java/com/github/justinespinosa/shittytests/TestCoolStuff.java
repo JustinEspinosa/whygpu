@@ -18,7 +18,6 @@ import com.github.justinespinosa.textmode.curses.term.termcap.TermCap;
 import com.github.justinespinosa.textmode.curses.ui.WindowManager;
 
 
-//import jcurses.ui.Label;
 
 
 public class TestCoolStuff extends Thread{
